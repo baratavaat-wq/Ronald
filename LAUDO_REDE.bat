@@ -3,14 +3,14 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 :: =========================================================
-::  LAUDO COMPLETO DE REDE v37 - GPON/ONU/ONT/Wi-Fi 2.4G-5G
+::  LAUDO COMPLETO DE REDE v38 - GPON/ONU/ONT/Wi-Fi 2.4G-5G
 ::  Criado por: Ronald
 ::  - Pede NOME DO TECNICO, minutos, extra IPv4 e extra IPv6
 ::  - Laudo com perda + ping MIN / MEDIO / MAX + diagnostico
 ::  - ENVIA TUDO PARA O TELEGRAM (texto + ZIP do laudo)
 :: =========================================================
 
-title LAUDO DE REDE v37 - por Ronald
+title LAUDO DE REDE v38 - por Ronald
 color 0A
 set "AQUI=%~dp0"
 
@@ -144,7 +144,7 @@ call :CHECAR_ATUALIZACAO
 call :CARREGAR_CONFIG
 echo.
 echo   ============================================
-echo     [OK] VERSAO 37 - MENU DE 3 OPCOES FUNCIONANDO!
+echo     [OK] VERSAO 38 - MENU DE 3 OPCOES FUNCIONANDO!
 echo   ============================================
 timeout /t 4 >nul
 
@@ -182,7 +182,7 @@ set "TECNICO="
 set "TEC_OK="
 cls
 echo =====================================================
-echo             LAUDO DE REDE v37 - Ronald
+echo             LAUDO DE REDE v38 - Ronald
 echo =====================================================
 echo.
 echo  IDENTIFICACAO DO TECNICO
