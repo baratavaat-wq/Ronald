@@ -379,7 +379,7 @@ if not defined CONEXAO set "CONEXAO=nao detectada"
 
 cls
 echo =====================================================
-echo          LAUDO COMPLETO DE REDE v34
+echo          LAUDO COMPLETO DE REDE v37
 echo          Tecnico: %TECNICO%   Cliente: %CLIENTE%
 echo =====================================================
 echo.
