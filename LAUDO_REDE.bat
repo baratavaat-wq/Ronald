@@ -1174,42 +1174,19 @@ exit /b 0
 :: =========================================================
 :CHECAR_ATUALIZACAO
 if /i not "%CHECAR_UPDATE%"=="sim" goto :eof
+echo Verificando atualizacoes...
 set "VERSAO_REMOTA="
 set "PVER=%TEMP%\lr_ver.ps1"
 del "%PVER%" >nul 2>&1
-:: PowerShell com TIMEOUT proprio (4s) - WebClient puro trava sem isso
-echo $ProgressPreference = 'SilentlyContinue' >>"%PVER%"
 echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PVER%"
 echo try { >>"%PVER%"
-echo $r = Invoke-WebRequest -Uri '%URL_VERSAO%' -UseBasicParsing -TimeoutSec 4 >>"%PVER%"
-echo Write-Output ([string]$r.Content).Trim() >>"%PVER%"
+echo $w = New-Object System.Net.WebClient >>"%PVER%"
+echo $t = $w.DownloadString('%URL_VERSAO%') >>"%PVER%"
+echo Write-Output $t.Trim() >>"%PVER%"
 echo } catch { Write-Output 'ERRO' } >>"%PVER%"
-
-:: tenta ate 3 vezes; cada tentativa desiste em ~4s (nao trava)
-set "VERSAO_REMOTA="
-set "TENT=1"
-call :TENTAR_VER
-if defined VERSAO_REMOTA goto VER_OK
-set "TENT=2"
-call :TENTAR_VER
-if defined VERSAO_REMOTA goto VER_OK
-set "TENT=3"
-call :TENTAR_VER
-if defined VERSAO_REMOTA goto VER_OK
-echo   Sem conexao com o GitHub apos 3 tentativas - seguindo normal.
-timeout /t 2 >nul
-goto :eof
-
-:TENTAR_VER
-echo   Verificando atualizacoes... tentativa %TENT% de 3
-set "RESP_VER="
-for /f "delims=" %%v in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PVER%" 2^>nul') do set "RESP_VER=%%v"
-if not defined RESP_VER goto :eof
-if /i "%RESP_VER%"=="ERRO" goto :eof
-set "VERSAO_REMOTA=%RESP_VER%"
-goto :eof
-
-:VER_OK
+for /f "delims=" %%v in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PVER%"') do set "VERSAO_REMOTA=%%v"
+if not defined VERSAO_REMOTA goto :eof
+if /i "%VERSAO_REMOTA%"=="ERRO" (echo   Sem conexao com o GitHub - seguindo com a versao local. & timeout /t 2 >nul & goto :eof)
 set /a "VL=%VERSAO_LOCAL%" 2>nul
 set /a "VR=%VERSAO_REMOTA%" 2>nul
 if not defined VR goto :eof
