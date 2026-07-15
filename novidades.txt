@@ -1,4 +1,2 @@
-- Correcao do fechamento ao abrir o programa.
-- Token do Telegram agora fica salvo (config.ini).
-- Atualizacao automatica pelo GitHub.
-- Deteccao de Wi-Fi 2.4/5 GHz e geracao Wi-Fi.
+- TESTE do sistema de atualizacao.
+- Se voce esta vendo isso, o autoupdate funciona!
