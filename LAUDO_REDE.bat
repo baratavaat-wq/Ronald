@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1001"
+set "VER=1002"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -157,6 +157,8 @@ timeout /t 4 >nul
 :: GATEWAY AUTOMATICO (ABA 1)
 set "GW="
 for /f "tokens=3" %%g in ('route print -4 ^| findstr /r /c:"^ *0\.0\.0\.0 *0\.0\.0\.0"') do if not defined GW set "GW=%%g"
+:: plano B: se o route print nao achou, tenta pelo PowerShell (redes/VPN modernas)
+if not defined GW for /f "delims=" %%g in ('powershell -NoProfile -Command "(Get-NetIPConfiguration ^| Where-Object { $_.IPv4DefaultGateway -ne $null } ^| Select-Object -First 1 -ExpandProperty IPv4DefaultGateway).NextHop" 2^>nul') do if not defined GW set "GW=%%g"
 if not defined GW set "GW=192.168.0.1"
 
 :: CHECAGEM PREVIA DE IPv6 (ABA 5 e 6)
@@ -224,7 +226,11 @@ set "PSAN=%TEMP%\sanit.ps1"
 del "%PSAN%" >nul 2>&1
 echo param($txt) >>"%PSAN%"
 echo $c = $txt -replace '[\\/:*?^<^>^|]', '' >>"%PSAN%"
+echo $c = $c -replace '[^\x20-\x7E]', '' >>"%PSAN%"
+echo $c = $c -replace '[\x00-\x1F]', '' >>"%PSAN%"
 echo $c = $c -replace '\s+', '_' >>"%PSAN%"
+echo $c = $c.Trim('. _') >>"%PSAN%"
+echo if ($c.Length -gt 40) { $c = $c.Substring(0,40) } >>"%PSAN%"
 echo if (-not $c) { $c = 'cliente' } >>"%PSAN%"
 echo Write-Output $c >>"%PSAN%"
 set "CLI_PASTA="
@@ -1122,6 +1128,20 @@ echo   SUSPEITO = indicio fraco sem consenso entre destinos - monitorar, nao rep
 echo.
 echo  LAUDO TECNICO : %LAUDO%\VEREDITO.txt
 echo  PASTA COMPLETA: %LAUDO%
+echo.
+echo  Tracando a rota ate a internet (tracert) - aguarde...
+(
+echo ===== ROTA ATE %ALVO_INTERNET% (tracert) =====
+echo Data: %date% %time%
+echo.
+tracert -d -h 20 -w 800 %ALVO_INTERNET%
+) > "%LAUDO%\ROTA_tracert.txt" 2>&1
+echo  Rota salva em ROTA_tracert.txt
+echo.
+
+:: limpeza dos temporarios gerados por este laudo
+del "%PBEEP%" "%PFALA%" "%PWAIT%" "%PTG%" "%PNET%" "%PCHK%" "%PSAN%" "%PVER%" >nul 2>&1
+del "%TEMP%\speed_loop.bat" "%TEMP%\fast_loop.bat" "%TEMP%\lr_ver.ps1" "%TEMP%\lr_notas.txt" >nul 2>&1
 echo.
 pause
 endlocal
