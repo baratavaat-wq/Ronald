@@ -3,14 +3,14 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 :: =========================================================
-::  LAUDO COMPLETO DE REDE v36 - GPON/ONU/ONT/Wi-Fi 2.4G-5G
+::  LAUDO COMPLETO DE REDE v37 - GPON/ONU/ONT/Wi-Fi 2.4G-5G
 ::  Criado por: Ronald
 ::  - Pede NOME DO TECNICO, minutos, extra IPv4 e extra IPv6
 ::  - Laudo com perda + ping MIN / MEDIO / MAX + diagnostico
 ::  - ENVIA TUDO PARA O TELEGRAM (texto + ZIP do laudo)
 :: =========================================================
 
-title LAUDO DE REDE v36 - por Ronald
+title LAUDO DE REDE v37 - por Ronald
 color 0A
 set "AQUI=%~dp0"
 
@@ -18,7 +18,7 @@ set "AQUI=%~dp0"
 ::   VERSAO E ATUALIZACAO AUTOMATICA (GitHub)
 ::   Troque USUARIO e REPO pelos seus. Ramo: main.
 :: +=======================================================+
-set "VERSAO_LOCAL=36"
+set "VERSAO_LOCAL=37"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
 set "URL_SCRIPT=%RAW_BASE%LAUDO_REDE.bat"
@@ -144,7 +144,7 @@ call :CHECAR_ATUALIZACAO
 call :CARREGAR_CONFIG
 echo.
 echo   ============================================
-echo     [OK] VERSAO 36 - MENU DE 3 OPCOES FUNCIONANDO!
+echo     [OK] VERSAO 37 - MENU DE 3 OPCOES FUNCIONANDO!
 echo   ============================================
 timeout /t 4 >nul
 
@@ -182,7 +182,7 @@ set "TECNICO="
 set "TEC_OK="
 cls
 echo =====================================================
-echo             LAUDO DE REDE v36 - Ronald
+echo             LAUDO DE REDE v37 - Ronald
 echo =====================================================
 echo.
 echo  IDENTIFICACAO DO TECNICO
