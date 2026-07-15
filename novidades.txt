@@ -1,3 +1,0 @@
-- TESTE do sistema de atualizacao.
-- Se voce esta vendo isso, o autoupdate funciona!
-teste
