@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1003"
+set "VER=45"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -1190,7 +1190,12 @@ if /i "%VERSAO_REMOTA%"=="ERRO" (echo   Sem conexao com o GitHub - seguindo com 
 set /a "VL=%VERSAO_LOCAL%" 2>nul
 set /a "VR=%VERSAO_REMOTA%" 2>nul
 if not defined VR goto :eof
-if %VR% LEQ %VL% (echo   Voce ja esta na versao mais recente ^(v%VERSAO_LOCAL%^). & timeout /t 2 >nul & goto :eof)
+:: iguais = nada a fazer
+if %VR% EQU %VL% (echo   Voce ja esta na versao publicada ^(v%VERSAO_LOCAL%^). & timeout /t 2 >nul & goto :eof)
+:: define o sentido: subir (nova) ou voltar (retorno a uma versao anterior)
+set "DIRECAO=ATUALIZAR"
+set "PALAVRA=atualizacao disponivel"
+if %VR% LSS %VL% (set "DIRECAO=RETORNAR" & set "PALAVRA=RETORNO de versao solicitado")
 
 set "NOTAS=%TEMP%\lr_notas.txt"
 del "%NOTAS%" >nul 2>&1
@@ -1198,11 +1203,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager
 
 cls
 echo =====================================================
-echo            ATUALIZACAO DISPONIVEL
+echo            %PALAVRA%
 echo =====================================================
 echo.
-echo   Sua versao : v%VERSAO_LOCAL%
-echo   Disponivel : v%VERSAO_REMOTA%
+echo   Sua versao no PC : v%VERSAO_LOCAL%
+echo   Versao publicada : v%VERSAO_REMOTA%
 echo.
 if exist "%NOTAS%" (
   echo   Novidades:
@@ -1211,7 +1216,7 @@ if exist "%NOTAS%" (
 )
 :MENU_UPDATE
 echo   O que deseja fazer?
-echo     [1] Atualizar agora (baixar e reiniciar automaticamente)
+echo     [1] Aplicar agora (baixar a versao publicada e reiniciar)
 echo     [2] Baixar manualmente (abre o link do repositorio no navegador)
 echo     [3] Continuar na versao atual
 echo.
