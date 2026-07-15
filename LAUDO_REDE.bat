@@ -3,14 +3,14 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 :: =========================================================
-::  LAUDO COMPLETO DE REDE v34 - GPON/ONU/ONT/Wi-Fi 2.4G-5G
+::  LAUDO COMPLETO DE REDE v2001 - GPON/ONU/ONT/Wi-Fi 2.4G-5G
 ::  Criado por: Ronald
 ::  - Pede NOME DO TECNICO, minutos, extra IPv4 e extra IPv6
 ::  - Laudo com perda + ping MIN / MEDIO / MAX + diagnostico
 ::  - ENVIA TUDO PARA O TELEGRAM (texto + ZIP do laudo)
 :: =========================================================
 
-title LAUDO DE REDE v34 - por Ronald
+title LAUDO DE REDE v2001 - por Ronald
 color 0A
 set "AQUI=%~dp0"
 
@@ -183,7 +183,7 @@ echo =====================================================
 echo.
 echo  IDENTIFICACAO DO TECNICO
 echo  Digite APENAS O PRIMEIRO NOME de quem esta fazendo o teste.
-echo  Exemplos: Ronald / Lucas / Carlos
+echo  Exemplos: Ronald / teste / Carlos
 echo.
 set /p "TECNICO=  Primeiro nome do tecnico: "
 if not defined TECNICO goto PERGUNTA_TECNICO
