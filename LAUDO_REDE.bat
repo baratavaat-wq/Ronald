@@ -18,7 +18,7 @@ set "AQUI=%~dp0"
 ::   VERSAO E ATUALIZACAO AUTOMATICA (GitHub)
 ::   Troque USUARIO e REPO pelos seus. Ramo: main.
 :: +=======================================================+
-set "VERSAO_LOCAL=36"
+set "VERSAO_LOCAL=35"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
 set "URL_SCRIPT=%RAW_BASE%LAUDO_REDE.bat"
@@ -142,7 +142,7 @@ call :CHECAR_ATUALIZACAO
 call :CARREGAR_CONFIG
 echo.
 echo   ============================================
-echo     [OK] VERSAO 36 RODANDO - ATUALIZACAO FUNCIONOU!
+echo     [OK] VERSAO 35 RODANDO - ATUALIZACAO FUNCIONOU!
 echo   ============================================
 timeout /t 4 >nul
 
@@ -377,7 +377,7 @@ if not defined CONEXAO set "CONEXAO=nao detectada"
 
 cls
 echo =====================================================
-echo          LAUDO COMPLETO DE REDE v34
+echo          LAUDO COMPLETO DE REDE v35
 echo          Tecnico: %TECNICO%   Cliente: %CLIENTE%
 echo =====================================================
 echo.
