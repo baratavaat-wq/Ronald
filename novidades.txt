@@ -1,0 +1,3 @@
+- Versao de teste v36.
+- Testando o ciclo completo de atualizacao.
+- Se reiniciou sozinho e chegou aqui, esta funcionando.
