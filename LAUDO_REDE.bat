@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=40"
+set "VER=43"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -193,7 +193,7 @@ echo =====================================================
 echo.
 echo  IDENTIFICACAO DO TECNICO
 echo  Digite APENAS O PRIMEIRO NOME de quem esta fazendo o teste.
-echo  Exemplos: Ronald / Cadu / Carlos
+echo  Exemplos: Ronald / Matheus / Carlos
 echo.
 set /p "TECNICO=  Primeiro nome do tecnico: "
 if not defined TECNICO goto PERGUNTA_TECNICO
