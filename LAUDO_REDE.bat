@@ -18,7 +18,7 @@ set "AQUI=%~dp0"
 ::   VERSAO E ATUALIZACAO AUTOMATICA (GitHub)
 ::   Troque USUARIO e REPO pelos seus. Ramo: main.
 :: +=======================================================+
-set "VERSAO_LOCAL=37"
+set "VERSAO_LOCAL=38"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
 set "URL_SCRIPT=%RAW_BASE%LAUDO_REDE.bat"
