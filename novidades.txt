@@ -1,0 +1,3 @@
+- Novo menu de atualizacao com 3 opcoes.
+- Opcao 2: baixar manualmente pelo navegador.
+- Teste do ciclo completo.
