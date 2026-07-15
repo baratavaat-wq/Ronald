@@ -185,7 +185,7 @@ echo =====================================================
 echo.
 echo  IDENTIFICACAO DO TECNICO
 echo  Digite APENAS O PRIMEIRO NOME de quem esta fazendo o teste.
-echo  Exemplos: Ronald / teste / Carlos
+echo  Exemplos: Ronald / matheus / Carlos
 echo.
 set /p "TECNICO=  Primeiro nome do tecnico: "
 if not defined TECNICO goto PERGUNTA_TECNICO
