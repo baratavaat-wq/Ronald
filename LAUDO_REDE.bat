@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1014"
+set "VER=1015"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -238,7 +238,11 @@ for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%
 if not defined CLI_PASTA set "CLI_PASTA=cliente"
 
 :: PASTA DO LAUDO (com o nome do tecnico)
-set "LAUDO=%USERPROFILE%\Desktop\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
+:: pasta central dos laudos (fora da area de trabalho)
+set "BASE_LAUDOS=%ProgramData%\LaudoRede\Laudos"
+mkdir "%BASE_LAUDOS%" >nul 2>&1
+if not exist "%BASE_LAUDOS%" (set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos" & mkdir "%BASE_LAUDOS%" >nul 2>&1)
+set "LAUDO=%BASE_LAUDOS%\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
 
 :: =========================================================
@@ -1188,6 +1192,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MO
 
 if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%"
 
+:: contabiliza este teste no MAC do PC e avisa o grupo a cada 10
+call :CONTAR_TESTE
+
 :: TELA FINAL
 echo.
 echo =========================================================================
@@ -1436,6 +1443,90 @@ if defined TG_CHAT set "TG_CHAT=%TG_CHAT:"=%"
 echo.
 echo   Configuracao salva em %CFG%
 timeout /t 2 >nul
+goto :eof
+
+:: =========================================================
+:: SUB-ROTINA: CONTADOR DE TESTES POR MAC DO PC
+::   - conta por MAC (nao por tecnico: o PC troca de tecnico)
+::   - guarda em ProgramData\LaudoRede\contador.ini
+::   - a cada 10 testes do mesmo MAC, avisa no grupo
+:: =========================================================
+:CONTAR_TESTE
+:: pasta do contador (mesma logica do config)
+set "CNT_DIR=%ProgramData%\LaudoRede"
+if not exist "%CNT_DIR%" mkdir "%CNT_DIR%" >nul 2>&1
+if not exist "%CNT_DIR%" set "CNT_DIR=%APPDATA%\LaudoRede"
+set "CNT=%CNT_DIR%\contador.ini"
+
+:: pega o MAC do adaptador ATIVO (o que tem gateway / esta em uso)
+set "MAC_PC="
+set "PMAC=%TEMP%\lr_mac.ps1"
+del "%PMAC%" >nul 2>&1
+echo try { >>"%PMAC%"
+echo $a = Get-NetAdapter -Physical ^| Where-Object { $_.Status -eq 'Up' } ^| Sort-Object -Property LinkSpeed -Descending ^| Select-Object -First 1 >>"%PMAC%"
+echo if ($a) { Write-Output $a.MacAddress } else { Write-Output 'SEM-MAC' } >>"%PMAC%"
+echo } catch { Write-Output 'SEM-MAC' } >>"%PMAC%"
+for /f "delims=" %%m in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PMAC%"') do set "MAC_PC=%%m"
+if not defined MAC_PC set "MAC_PC=SEM-MAC"
+:: normaliza o MAC pra usar como chave (tira : e - )
+set "MAC_KEY=%MAC_PC::=%"
+set "MAC_KEY=%MAC_KEY:-=%"
+if not defined MAC_KEY set "MAC_KEY=SEMMAC"
+
+:: le o total atual desse MAC no contador.ini
+set "TOTAL=0"
+if exist "%CNT%" (
+  for /f "usebackq tokens=1,* delims==" %%a in ("%CNT%") do (
+    if /i "%%a"=="%MAC_KEY%" set "TOTAL=%%b"
+  )
+)
+:: incrementa
+set /a "TOTAL=%TOTAL%+1" 2>nul
+if not defined TOTAL set "TOTAL=1"
+
+:: reescreve o contador.ini preservando os outros MACs
+:: (delayed expansion OFF aqui para %%x/%%y funcionarem dentro do for)
+setlocal disabledelayedexpansion
+set "TMPC=%TEMP%\lr_cnt_tmp.ini"
+del "%TMPC%" >nul 2>&1
+set "ACHOU_LINHA="
+if exist "%CNT%" (
+  for /f "usebackq tokens=1,* delims==" %%x in ("%CNT%") do (
+    if /i "%%x"=="%MAC_KEY%" (
+      >>"%TMPC%" echo %MAC_KEY%=%TOTAL%
+      set "ACHOU_LINHA=1"
+    ) else (
+      >>"%TMPC%" echo %%x=%%y
+    )
+  )
+)
+if not defined ACHOU_LINHA >>"%TMPC%" echo %MAC_KEY%=%TOTAL%
+if exist "%TMPC%" (move /y "%TMPC%" "%CNT%" >nul) else (>"%CNT%" echo %MAC_KEY%=%TOTAL%)
+endlocal
+
+echo.
+echo   Testes realizados neste PC ^(MAC %MAC_PC%^): %TOTAL%
+
+:: a cada 10 testes, avisa o grupo
+set /a "RESTO=%TOTAL% %% 10" 2>nul
+if "%RESTO%"=="0" if /i "%TG_ENVIAR%"=="sim" (
+  set "PMSG=%TEMP%\lr_marco.ps1"
+  del "%PMSG%" >nul 2>&1
+  echo $token = "%TG_TOKEN%" >>"%PMSG%"
+  echo $chat  = "%TG_CHAT%" >>"%PMSG%"
+  echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PMSG%"
+  echo Add-Type -AssemblyName System.Net.Http >>"%PMSG%"
+  echo $cli = New-Object System.Net.Http.HttpClient >>"%PMSG%"
+  echo $txt = "MARCO DE USO`nPC (MAC %MAC_PC%) atingiu %TOTAL% testes de rede realizados." >>"%PMSG%"
+  echo try { >>"%PMSG%"
+  echo $f = New-Object System.Net.Http.MultipartFormDataContent >>"%PMSG%"
+  echo $f.Add((New-Object System.Net.Http.StringContent($chat, [System.Text.Encoding]::UTF8)), "chat_id") >>"%PMSG%"
+  echo $f.Add((New-Object System.Net.Http.StringContent($txt, [System.Text.Encoding]::UTF8)), "text") >>"%PMSG%"
+  echo $r = $cli.PostAsync(("https://api.telegram.org/bot" + $token + "/sendMessage"), $f).Result >>"%PMSG%"
+  echo } catch {} >>"%PMSG%"
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%PMSG%" >nul 2>&1
+  echo   [Telegram] Marco de %TOTAL% testes enviado ao grupo.
+)
 goto :eof
 
 :LOCALIZAR
