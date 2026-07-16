@@ -1,4 +1,3 @@
-Alerta versao v61 voltado na ordem correta beta
 Corrigindo prolema do sinal
 problema do envio do telegran
 problema da janela fecha sozinho
