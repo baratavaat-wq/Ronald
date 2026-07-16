@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1013"
+set "VER=1012"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -1302,14 +1302,37 @@ echo     [1] Aplicar agora (baixar a versao publicada e reiniciar)
 echo     [2] Baixar manualmente (abre o link do repositorio no navegador)
 echo     [3] Continuar na versao atual
 echo.
-echo   Se voce nao escolher em 5 segundos, aplica automaticamente.
-echo.
-choice /c 123 /t 5 /d 1 /n /m "  Escolha 1, 2 ou 3 (auto em 5s = 1): "
+choice /c 123 /n /m "  Escolha 1, 2 ou 3: "
 set "RESP_UP=%ERRORLEVEL%"
 if "%RESP_UP%"=="1" goto FAZER_UPDATE
 if "%RESP_UP%"=="2" goto UPDATE_MANUAL
-if "%RESP_UP%"=="3" (echo   Mantendo a versao atual. & timeout /t 1 >nul & goto :eof)
-goto FAZER_UPDATE
+if "%RESP_UP%"=="3" goto RECUSAR_UPDATE
+goto MENU_UPDATE
+
+:RECUSAR_UPDATE
+color 0C
+echo.
+echo   #############################################################
+echo   #                    A T E N C A O                         #
+echo   #############################################################
+echo.
+echo   Voce escolheu NAO atualizar.
+echo.
+echo   Rodar uma versao ANTIGA pode causar:
+echo     - erros e travamentos ja corrigidos na versao nova;
+echo     - diagnostico incorreto ou incompleto;
+echo     - envio ao Telegram com problema;
+echo     - falta de recursos novos.
+echo.
+echo   Recomendado: atualizar sempre para a versao mais recente.
+echo.
+choice /c SN /n /m "  Continuar mesmo assim na versao antiga? [S/N]: "
+if errorlevel 2 (color 0A & cls & goto MENU_UPDATE)
+color 0A
+echo.
+echo   Ok, mantendo a versao atual por sua conta e risco.
+timeout /t 2 >nul
+goto :eof
 
 :UPDATE_MANUAL
 :: deriva o endereco da pagina do repo a partir do RAW_BASE
