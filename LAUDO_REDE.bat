@@ -238,7 +238,11 @@ for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%
 if not defined CLI_PASTA set "CLI_PASTA=cliente"
 
 :: PASTA DO LAUDO (com o nome do tecnico)
-set "LAUDO=%USERPROFILE%\Desktop\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
+:: laudos na pasta central (fora da area de trabalho)
+set "BASE_LAUDOS=%ProgramData%\LaudoRede\Laudos"
+mkdir "%BASE_LAUDOS%" >nul 2>&1
+if not exist "%BASE_LAUDOS%" (set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos" & mkdir "%BASE_LAUDOS%" >nul 2>&1)
+set "LAUDO=%BASE_LAUDOS%\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
 
 :: =========================================================
