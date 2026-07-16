@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1016"
+set "VER=1017"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -297,6 +297,87 @@ timeout /t 2 >nul
 if "%TEM_IPV6%"=="1" (set "TXT_IPV6=SIM - alvo: %IPV6_USADO%") else (set "TXT_IPV6=NAO - abas IPv6 nao serao abertas")
 if defined ALVO_EXTRA (set "TXT_EXTRA=%ALVO_EXTRA%") else (set "TXT_EXTRA=nao usado")
 if defined ALVO_EXTRA_IPV6 (set "TXT_EXTRA6=%ALVO_EXTRA_IPV6%") else (set "TXT_EXTRA6=nao usado")
+
+:: =========================================================
+:: LIMPEZA DE CONEXAO (antes de testar)
+::   flushdns + arp -d + release + renew, sem reiniciar o PC.
+::   Como o release derruba a rede, o tecnico reconecta o
+::   Wi-Fi e confirma. Se for cabo, segue direto.
+:: =========================================================
+cls
+echo =====================================================
+echo          LIMPEZA DE CONEXAO ANTES DO TESTE
+echo =====================================================
+echo.
+echo   Vou limpar o cache de rede e renovar o IP:
+echo     - limpar cache DNS
+echo     - limpar tabela ARP
+echo     - liberar e renovar o IP (release / renew)
+echo.
+echo   ATENCAO: isso derruba a conexao por alguns segundos.
+echo   Se estiver no Wi-Fi, sera preciso reconectar depois.
+echo.
+choice /c SN /n /m "  Fazer a limpeza de conexao agora? [S/N]: "
+if errorlevel 2 goto PULAR_LIMPEZA
+
+echo.
+echo   Limpando cache DNS...
+ipconfig /flushdns >nul 2>&1
+echo   Limpando tabela ARP...
+arp -d * >nul 2>&1
+netsh interface ip delete arpcache >nul 2>&1
+echo   Liberando IP (release)...
+ipconfig /release >nul 2>&1
+echo   Renovando IP (renew)...
+ipconfig /renew >nul 2>&1
+echo.
+echo   Limpeza concluida.
+echo.
+
+:: se nao for admin, avisa que parte pode nao ter funcionado
+net session >nul 2>&1
+if errorlevel 1 (
+  echo   [AVISO] O script NAO esta como administrador.
+  echo   O release/renew e o arp podem nao ter funcionado.
+  echo   Para limpeza completa, rode como administrador.
+  echo.
+)
+
+:PERGUNTA_RECONECTOU
+echo   Voce esta usando Wi-Fi ou cabo?
+echo     [W] Wi-Fi  (vou esperar voce reconectar)
+echo     [C] Cabo   (segue direto)
+choice /c WC /n /m "  Escolha W ou C: "
+if errorlevel 2 goto LIMPEZA_OK
+
+:: Wi-Fi: espera o tecnico reconectar e confirmar
+echo.
+echo   Reconecte no Wi-Fi do cliente agora.
+echo   Quando o Wi-Fi estiver conectado, pressione qualquer tecla.
+pause >nul
+:: confirma que ha conexao antes de seguir (testa o gateway/DNS)
+echo   Verificando a conexao...
+ping -n 1 -w 2000 8.8.8.8 >nul 2>&1
+if errorlevel 1 (
+  echo.
+  echo   [ATENCAO] Ainda nao detectei internet. Confira o Wi-Fi.
+  echo.
+  goto PERGUNTA_RECONECTOU
+)
+echo   Conexao OK.
+timeout /t 1 >nul
+goto LIMPEZA_OK
+
+:LIMPEZA_OK
+:: pausa curta pra rede estabilizar antes de medir
+timeout /t 3 /nobreak >nul
+goto FIM_LIMPEZA
+
+:PULAR_LIMPEZA
+echo   Limpeza pulada - seguindo com a conexao atual.
+timeout /t 1 >nul
+
+:FIM_LIMPEZA
 
 :: =========================================================
 :: DETECCAO DA CONEXAO ATIVA
