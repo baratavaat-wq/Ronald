@@ -1,1 +1,3 @@
-Estou voltando a versao para v1014 pois tem bug
+Corrigindo prolema do sinal
+problema do envio do telegran
+problema da janela fecha sozinho
