@@ -1,5 +1,1 @@
-POR FAVOR NAO APAGAR SOMENTE ADM PODE APAGAR ALERTA
-- Laudos agora sao salvos em pasta propria (fora da area de trabalho).
-- Contador de testes por PC.
-- A cada 10 testes o grupo recebe um aviso automatico.
-- Correcoes de estabilidade.
+Estou voltando a versao para 1014 pois tem bug
