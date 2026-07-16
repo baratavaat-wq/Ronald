@@ -1,3 +1,8 @@
 Corrigindo prolema do sinal mostra dbm
 problema do envio do telegran
 problema da janela fecha sozinho
+add Limpado de rede para melhorar computador e arquivos temporarios que windows guarda
+ipconfig /flushdns
+arp -d *
+ipconfig /release
+ipconfig /renew
