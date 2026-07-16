@@ -1,1 +1,4 @@
-- Foi retirador a falar do final
+- Laudos agora sao salvos em pasta propria (fora da area de trabalho).
+- Contador de testes por PC.
+- A cada 10 testes o grupo recebe um aviso automatico.
+- Correcoes de estabilidade.
