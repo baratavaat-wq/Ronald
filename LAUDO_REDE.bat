@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1018"
+set "VER=1012"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -238,11 +238,7 @@ for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%
 if not defined CLI_PASTA set "CLI_PASTA=cliente"
 
 :: PASTA DO LAUDO (com o nome do tecnico)
-:: laudos na pasta central (fora da area de trabalho)
-set "BASE_LAUDOS=%ProgramData%\LaudoRede\Laudos"
-mkdir "%BASE_LAUDOS%" >nul 2>&1
-if not exist "%BASE_LAUDOS%" (set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos" & mkdir "%BASE_LAUDOS%" >nul 2>&1)
-set "LAUDO=%BASE_LAUDOS%\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
+set "LAUDO=%USERPROFILE%\Desktop\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
 
 :: =========================================================
