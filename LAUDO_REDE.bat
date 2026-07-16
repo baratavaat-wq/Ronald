@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1014"
+set "VER=1012"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -238,7 +238,11 @@ for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%
 if not defined CLI_PASTA set "CLI_PASTA=cliente"
 
 :: PASTA DO LAUDO (com o nome do tecnico)
-set "LAUDO=%USERPROFILE%\Desktop\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
+:: laudos na pasta central (fora da area de trabalho)
+set "BASE_LAUDOS=%ProgramData%\LaudoRede\Laudos"
+mkdir "%BASE_LAUDOS%" >nul 2>&1
+if not exist "%BASE_LAUDOS%" (set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos" & mkdir "%BASE_LAUDOS%" >nul 2>&1)
+set "LAUDO=%BASE_LAUDOS%\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
 
 :: =========================================================
@@ -352,7 +356,7 @@ echo $ad = Get-NetAdapter -InterfaceIndex $fi.InterfaceIndex -ErrorAction Stop >
 echo if ($ad.MediaType -eq '802.3') { $rota = 'LAN' } else { $rota = 'Wi-Fi' } >>"%PNET%"
 echo } catch {} >>"%PNET%"
 echo if ($temLan -and $temWifi) { $res = 'ATENCAO - LAN e Wi-Fi ligados AO MESMO TEMPO - o teste esta indo pela ' + $rota } >>"%PNET%"
-echo elseif ($temWifi) { $res = 'Wi-Fi / ' + $banda + ' / ' + $ger + ' / SSID ' + $ssid + ' / canal ' + $canal + ' / sinal ' + $sinal } >>"%PNET%"
+echo elseif ($temWifi) { $res = 'Wi-Fi / ' + $banda + ' / ' + $ger + ' / SSID ' + $ssid + ' / canal ' + $canal + ' / sinal ' + $sinal + ([char]37) } >>"%PNET%"
 echo elseif ($temLan) { $res = 'LAN por cabo / ' + $lanVel } >>"%PNET%"
 echo else { $res = 'Nenhuma conexao ativa detectada' } >>"%PNET%"
 echo $det += '===== CONEXAO USADA NO TESTE =====' >>"%PNET%"
@@ -366,7 +370,9 @@ echo $det += 'Banda ..........: ' + $banda >>"%PNET%"
 echo $det += 'Geracao ........: ' + $ger >>"%PNET%"
 echo $det += 'Tipo de radio ..: ' + $radio >>"%PNET%"
 echo $det += 'Canal ..........: ' + $canal >>"%PNET%"
-echo $det += 'Sinal ..........: ' + $sinal >>"%PNET%"
+echo $det += 'Sinal (qualidade): ' + $sinal + ([char]37) + '  (0 a 100 - quanto maior melhor)' >>"%PNET%"
+echo $det += 'Obs: valor de QUALIDADE do sinal reportado pelo Windows, nao e dBm.' >>"%PNET%"
+echo $det += 'Para dBm exato use o medidor do proprio aparelho.' >>"%PNET%"
 echo $det += 'Taxa Rx ........: ' + $rx + ' Mbps' >>"%PNET%"
 echo $det += 'Taxa Tx ........: ' + $tx + ' Mbps' >>"%PNET%"
 echo } else { $det += 'Wi-Fi ..........: nao conectado' } >>"%PNET%"
