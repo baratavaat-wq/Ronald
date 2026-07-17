@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1020"
+set "VER=1021"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -167,12 +167,12 @@ if not defined GW set "GW=192.168.0.1"
 :: CHECAGEM PREVIA DE IPv6 (ABA 5 e 6)
 set "PCHK=%TEMP%\chk_ipv6.ps1"
 del "%PCHK%" >nul 2>&1
-echo param($alvo) >>"%PCHKTG%"
-echo $als = @($alvo, "2001:4860:4860::8888") >>"%PCHKTG%"
-echo foreach ($a in $als) { >>"%PCHKTG%"
-echo $r = ping -6 -n 2 -w 1500 $a >>"%PCHKTG%"
-echo if ($r -match "=\s*\d+\s*ms") { Write-Output $a; break } >>"%PCHKTG%"
-echo } >>"%PCHKTG%"
+echo param($alvo) >>"%PCHK%"
+echo $als = @($alvo, "2001:4860:4860::8888") >>"%PCHK%"
+echo foreach ($a in $als) { >>"%PCHK%"
+echo $r = ping -6 -n 2 -w 1500 $a >>"%PCHK%"
+echo if ($r -match "=\s*\d+\s*ms") { Write-Output $a; break } >>"%PCHK%"
+echo } >>"%PCHK%"
 
 set "TEM_IPV6=0"
 set "IPV6_USADO="
@@ -2030,24 +2030,25 @@ if not "%IA_KEY%"=="x" (
 )
 
 :: --- Telegram: teste REAL (gratis) se o formato passou ---
-if /i "%TG_ENVIAR%"=="sim" if not defined PROB_TG (
-  set "PCHKTG=%TEMP%\lr_chk_tg.ps1"
-  del "%PCHKTG%" >nul 2>&1
-  echo param($token,$chat) >>"%PCHKTG%"
-  echo [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12 >>"%PCHKTG%"
-  echo try { >>"%PCHKTG%"
-  echo $me = Invoke-RestMethod -Uri ("https://api.telegram.org/bot"+$token+"/getMe") -TimeoutSec 8 >>"%PCHKTG%"
-  echo if (-not $me.ok) { Write-Output 'TOKEN_RUIM'; exit } >>"%PCHKTG%"
-  echo $ch = Invoke-RestMethod -Uri ("https://api.telegram.org/bot"+$token+"/getChat?chat_id="+$chat) -TimeoutSec 8 >>"%PCHKTG%"
-  echo if (-not $ch.ok) { Write-Output 'BOT_FORA_DO_GRUPO'; exit } >>"%PCHKTG%"
-  echo Write-Output 'OK' >>"%PCHKTG%"
-  echo } catch { Write-Output 'SEM_INTERNET' } >>"%PCHKTG%"
-  set "TGRES="
-  for /f "delims=" %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PCHKTG%" "%TG_TOKEN%" "%TG_CHAT%"') do set "TGRES=%%r"
-  if "!TGRES!"=="TOKEN_RUIM" set "PROB_TG=token rejeitado pelo Telegram"
-  if "!TGRES!"=="BOT_FORA_DO_GRUPO" set "PROB_TG=o bot nao esta no grupo (chat id)"
-  :: SEM_INTERNET nao e problema de chave - nao marca
-)
+:: teste real do Telegram (fora de bloco, para o delayed expansion funcionar)
+if /i not "%TG_ENVIAR%"=="sim" goto FIM_TESTE_TG
+if defined PROB_TG goto FIM_TESTE_TG
+set "PCHKTG=%TEMP%\lr_chk_tg.ps1"
+del "%PCHKTG%" >nul 2>&1
+echo param($token,$chat) >>"%PCHKTG%"
+echo [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12 >>"%PCHKTG%"
+echo try { >>"%PCHKTG%"
+echo $me = Invoke-RestMethod -Uri ("https://api.telegram.org/bot"+$token+"/getMe") -TimeoutSec 8 >>"%PCHKTG%"
+echo if (-not $me.ok) { Write-Output 'TOKEN_RUIM'; exit } >>"%PCHKTG%"
+echo $ch = Invoke-RestMethod -Uri ("https://api.telegram.org/bot"+$token+"/getChat?chat_id="+$chat) -TimeoutSec 8 >>"%PCHKTG%"
+echo if (-not $ch.ok) { Write-Output 'BOT_FORA_DO_GRUPO'; exit } >>"%PCHKTG%"
+echo Write-Output 'OK' >>"%PCHKTG%"
+echo } catch { Write-Output 'SEM_INTERNET' } >>"%PCHKTG%"
+set "TGRES="
+for /f "delims=" %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PCHKTG%" "%TG_TOKEN%" "%TG_CHAT%"') do set "TGRES=%%r"
+if "%TGRES%"=="TOKEN_RUIM" set "PROB_TG=token rejeitado pelo Telegram"
+if "%TGRES%"=="BOT_FORA_DO_GRUPO" set "PROB_TG=o bot nao esta no grupo (chat id)"
+:FIM_TESTE_TG
 
 :: --- se tudo ok, sai calado ---
 if not defined PROB_TG if not defined PROB_IA goto :eof
