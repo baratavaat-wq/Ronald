@@ -1,3 +1,5 @@
+ ------Alerta API DA ITA VOU ENVIAR NO TELEFONE PARA VOCÊ TECNICO---------
+
 - Corrigindo problema do sinal mostra A força do sinal em % nao dbm
 - Novo assistente de IA no final do teste (ate 10 perguntas).
 - A IA analisa o resultado e tira duvidas de rede/GPON.
