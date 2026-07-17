@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1021"
+set "VER=1022"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -2007,6 +2007,7 @@ goto :eof
 ::   - Se achar problema, oferece colar a chave na hora
 :: =========================================================
 :VERIFICAR_CHAVES
+if not defined IGN_REC set "IGN_REC=0"
 set "PROB_TG="
 set "PROB_IA="
 
@@ -2076,7 +2077,7 @@ echo.
 choice /c TIS /n /m "  Escolha T, I ou S: "
 set "OPC=%ERRORLEVEL%"
 color 0A
-if "%OPC%"=="3" goto :eof
+if "%OPC%"=="3" goto IGNORAR_AVISO
 if "%OPC%"=="1" goto CORRIGIR_TG
 if "%OPC%"=="2" goto CORRIGIR_IA
 goto :eof
@@ -2112,6 +2113,57 @@ echo.
 echo   Chave da IA atualizada.
 timeout /t 1 >nul
 goto VERIFICAR_CHAVES
+
+:: =========================================================
+:: IGNORAR_AVISO - insiste 3x antes de deixar seguir com problema
+:: =========================================================
+:IGNORAR_AVISO
+set /a "IGN_REC=%IGN_REC%+1"
+if %IGN_REC% GEQ 4 goto :eof
+cls
+color 4F
+echo #############################################################
+echo #                  A T E N C A O                           #
+echo #############################################################
+echo.
+echo   Voce escolheu SEGUIR sem corrigir (tentativa %IGN_REC% de 3).
+echo.
+echo   Ignorar isso tem consequencia:
+if defined PROB_TG (
+  echo     [TELEGRAM] os laudos NAO serao enviados ao grupo.
+  echo                O responsavel nao vai receber o resultado.
+)
+if defined PROB_IA (
+  echo     [IA] o assistente de IA NAO vai funcionar.
+  echo          Voce perde a analise automatica do teste.
+)
+echo.
+echo   Recomendamos corrigir agora (leva 10 segundos).
+echo.
+echo     [T] Corrigir o Telegram
+echo     [I] Corrigir a chave da IA
+echo     [S] Seguir assim mesmo (por sua conta)
+echo.
+choice /c TIS /n /m "  Escolha T, I ou S: "
+set "OPC2=%ERRORLEVEL%"
+color 0A
+if "%OPC2%"=="1" goto CORRIGIR_TG
+if "%OPC2%"=="2" goto CORRIGIR_IA
+:: escolheu seguir de novo
+if %IGN_REC% GEQ 3 goto IGNORAR_FINAL
+goto IGNORAR_AVISO
+
+:IGNORAR_FINAL
+cls
+color 4F
+echo   -----------------------------------------------------------
+echo   Ok, seguindo com a configuracao com problema.
+echo   Lembre-se de corrigir depois no config.ini para ter
+echo   o envio ao Telegram e o assistente de IA funcionando.
+echo   -----------------------------------------------------------
+color 0A
+timeout /t 3 >nul
+goto :eof
 
 :: grava o config atual (reusado pelas correcoes)
 :SALVAR_CFG
