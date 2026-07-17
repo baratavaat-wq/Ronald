@@ -1,3 +1,3 @@
-Corrigindo prolema do sinal mostra dbm
+Corrigindo prolema do sinal mostra A força do sinal em % nao dbm
 problema do envio do telegran
 problema da janela fecha sozinho
