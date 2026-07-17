@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1019"
+set "VER=1020"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -149,6 +149,7 @@ if not defined STAMP set "STAMP=sem_data"
 
 call :CHECAR_ATUALIZACAO
 call :CARREGAR_CONFIG
+call :VERIFICAR_CHAVES
 call :GRAVAR_BASE
 echo.
 echo   ============================================
@@ -166,12 +167,12 @@ if not defined GW set "GW=192.168.0.1"
 :: CHECAGEM PREVIA DE IPv6 (ABA 5 e 6)
 set "PCHK=%TEMP%\chk_ipv6.ps1"
 del "%PCHK%" >nul 2>&1
-echo param($alvo) >>"%PCHK%"
-echo $als = @($alvo, "2001:4860:4860::8888") >>"%PCHK%"
-echo foreach ($a in $als) { >>"%PCHK%"
-echo $r = ping -6 -n 2 -w 1500 $a >>"%PCHK%"
-echo if ($r -match "=\s*\d+\s*ms") { Write-Output $a; break } >>"%PCHK%"
-echo } >>"%PCHK%"
+echo param($alvo) >>"%PCHKTG%"
+echo $als = @($alvo, "2001:4860:4860::8888") >>"%PCHKTG%"
+echo foreach ($a in $als) { >>"%PCHKTG%"
+echo $r = ping -6 -n 2 -w 1500 $a >>"%PCHKTG%"
+echo if ($r -match "=\s*\d+\s*ms") { Write-Output $a; break } >>"%PCHKTG%"
+echo } >>"%PCHKTG%"
 
 set "TEM_IPV6=0"
 set "IPV6_USADO="
@@ -1517,64 +1518,20 @@ echo   CHAT ID do grupo ^(comeca com -100...^).
 set /p "TG_CHAT=  Chat ID: "
 if defined TG_CHAT set "TG_CHAT=%TG_CHAT:"=%"
 
-:: --- chave da IA (assistente) - insiste com 2 alertas, depois libera ---
-if defined IA_KEY goto GRAVA_CONFIG
-set "IA_REC=0"
-
-:PEDIR_IA
-cls
-echo =====================================================
-echo             ASSISTENTE DE IA
-echo =====================================================
-echo.
-echo   No final do teste voce pode fazer ate 10 perguntas
-echo   a uma IA que entende de redes/GPON e analisa o
-echo   resultado do teste. Ajuda MUITO no diagnostico.
-echo.
-echo   Cole a chave da DeepSeek para ativar.
-echo.
-set "IA_KEY="
-set /p "IA_KEY=  Cole a chave da IA (ou ENTER para pular): "
-if defined IA_KEY set "IA_KEY=%IA_KEY:"=%"
-if defined IA_KEY goto GRAVA_CONFIG
-
-:: recusou (deixou em branco)
-set /a "IA_REC=%IA_REC%+1"
-if %IA_REC% GEQ 3 goto IA_LIBERA
-
-cls
-color 6F
-echo #############################################################
-echo #                     A T E N C A O                        #
-echo #############################################################
-echo.
-if %IA_REC%==1 (
-  echo   Voce nao colocou a chave da IA.
+:: --- chave da IA (assistente no final) - opcional ---
+if not defined IA_KEY (
   echo.
-  echo   A IA ajuda muito: explica o resultado, aponta se o
-  echo   problema e do cliente ou da operadora, e responde
-  echo   duvidas tecnicas na hora. E muito recomendada.
-) else (
-  echo   ULTIMO AVISO: sem a chave da IA voce perde o
-  echo   assistente que analisa o teste e tira duvidas.
-  echo.
-  echo   Recomendamos fortemente configurar agora.
+  echo   -----------------------------------------------------
+  echo   ASSISTENTE DE IA ^(opcional^)
+  echo   No final do teste voce pode fazer perguntas a uma IA.
+  echo   Precisa de uma chave da DeepSeek. Deixe em branco
+  echo   para nao usar.
+  echo   -----------------------------------------------------
+  set "IA_KEY="
+  set /p "IA_KEY=  Cole a chave da IA (ou ENTER para pular): "
+  if defined IA_KEY set "IA_KEY=%IA_KEY:"=%"
+  if not defined IA_KEY set "IA_KEY=x"
 )
-echo.
-echo   Deseja colocar a chave agora?
-choice /c SN /n /m "  [S] Sim, colocar  [N] Nao, seguir sem IA: "
-color 0A
-if errorlevel 2 goto IA_LIBERA
-goto PEDIR_IA
-
-:IA_LIBERA
-:: seguiu sem IA - marca como desativada
-set "IA_KEY=x"
-color 0A
-echo.
-echo   Seguindo SEM o assistente de IA.
-echo   Voce pode configurar depois no config.ini.
-timeout /t 2 >nul
 
 :GRAVA_CONFIG
 >"%CFG%" echo TG_ENVIAR=%TG_ENVIAR%
@@ -2041,6 +1998,126 @@ echo.>>"%KB%"
 echo REGRA MESTRE: gateway ruim = problema do cliente ^(local^).>>"%KB%"
 echo               gateway bom + internet ruim = problema de fora ^(operadora^).>>"%KB%"
 echo               nunca condenar por 1 pico ou 1 pacote isolado.>>"%KB%"
+goto :eof
+
+:: =========================================================
+:: VERIFICAR_CHAVES - checagem de saude a cada execucao
+::   - Telegram: testa DE VERDADE (getMe + getChat) - gratis
+::   - IA: testa o FORMATO (sk-...) - nao gasta token
+::   - Se achar problema, oferece colar a chave na hora
+:: =========================================================
+:VERIFICAR_CHAVES
+set "PROB_TG="
+set "PROB_IA="
+
+:: --- checa FORMATO basico (anti-corrupcao) ---
+:: Telegram so testa se o envio esta ligado
+if /i "%TG_ENVIAR%"=="sim" (
+  :: token deve ter ':' no meio (formato 123:AAA)
+  echo %TG_TOKEN% | find ":" >nul || set "PROB_TG=formato do token invalido"
+  :: chat deve comecar com - (grupo) ou ser numero
+  if "%TG_TOKEN%"=="x" set "PROB_TG=token nao configurado"
+  if "%TG_CHAT%"=="x" set "PROB_TG=chat id nao configurado"
+  if not defined TG_CHAT set "PROB_TG=chat id vazio"
+)
+:: IA so checa formato (nao gasta token)
+if not "%IA_KEY%"=="x" (
+  if not defined IA_KEY (
+    set "PROB_IA=chave nao configurada"
+  ) else (
+    echo %IA_KEY% | find "sk-" >nul || set "PROB_IA=formato da chave invalido (deve comecar com sk-)"
+  )
+)
+
+:: --- Telegram: teste REAL (gratis) se o formato passou ---
+if /i "%TG_ENVIAR%"=="sim" if not defined PROB_TG (
+  set "PCHKTG=%TEMP%\lr_chk_tg.ps1"
+  del "%PCHKTG%" >nul 2>&1
+  echo param($token,$chat) >>"%PCHKTG%"
+  echo [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12 >>"%PCHKTG%"
+  echo try { >>"%PCHKTG%"
+  echo $me = Invoke-RestMethod -Uri ("https://api.telegram.org/bot"+$token+"/getMe") -TimeoutSec 8 >>"%PCHKTG%"
+  echo if (-not $me.ok) { Write-Output 'TOKEN_RUIM'; exit } >>"%PCHKTG%"
+  echo $ch = Invoke-RestMethod -Uri ("https://api.telegram.org/bot"+$token+"/getChat?chat_id="+$chat) -TimeoutSec 8 >>"%PCHKTG%"
+  echo if (-not $ch.ok) { Write-Output 'BOT_FORA_DO_GRUPO'; exit } >>"%PCHKTG%"
+  echo Write-Output 'OK' >>"%PCHKTG%"
+  echo } catch { Write-Output 'SEM_INTERNET' } >>"%PCHKTG%"
+  set "TGRES="
+  for /f "delims=" %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PCHKTG%" "%TG_TOKEN%" "%TG_CHAT%"') do set "TGRES=%%r"
+  if "!TGRES!"=="TOKEN_RUIM" set "PROB_TG=token rejeitado pelo Telegram"
+  if "!TGRES!"=="BOT_FORA_DO_GRUPO" set "PROB_TG=o bot nao esta no grupo (chat id)"
+  :: SEM_INTERNET nao e problema de chave - nao marca
+)
+
+:: --- se tudo ok, sai calado ---
+if not defined PROB_TG if not defined PROB_IA goto :eof
+
+:: --- achou problema: mostra e oferece corrigir ---
+:MOSTRAR_PROBLEMA
+cls
+color 6F
+echo #############################################################
+echo #          VERIFICACAO DE CONFIGURACAO                      #
+echo #############################################################
+echo.
+echo   Encontrei um problema na configuracao salva:
+echo.
+if defined PROB_TG echo     [TELEGRAM] %PROB_TG%
+if defined PROB_IA echo     [IA]       %PROB_IA%
+echo.
+echo   Voce pode corrigir agora (colar a chave certa) ou
+echo   seguir assim mesmo.
+echo.
+echo     [T] Corrigir o Telegram
+echo     [I] Corrigir a chave da IA
+echo     [S] Seguir assim mesmo
+echo.
+choice /c TIS /n /m "  Escolha T, I ou S: "
+set "OPC=%ERRORLEVEL%"
+color 0A
+if "%OPC%"=="3" goto :eof
+if "%OPC%"=="1" goto CORRIGIR_TG
+if "%OPC%"=="2" goto CORRIGIR_IA
+goto :eof
+
+:CORRIGIR_TG
+cls
+echo   --- Corrigir Telegram ---
+echo.
+echo   TOKEN do bot (BotFather). Ex: 123456:AAF...
+set /p "TG_TOKEN=  Token: "
+if defined TG_TOKEN set "TG_TOKEN=%TG_TOKEN:"=%"
+echo.
+echo   CHAT ID do grupo (comeca com -100...).
+set /p "TG_CHAT=  Chat ID: "
+if defined TG_CHAT set "TG_CHAT=%TG_CHAT:"=%"
+set "TG_ENVIAR=sim"
+call :SALVAR_CFG
+echo.
+echo   Telegram atualizado. Revalidando...
+timeout /t 1 >nul
+goto VERIFICAR_CHAVES
+
+:CORRIGIR_IA
+cls
+echo   --- Corrigir chave da IA ---
+echo.
+echo   Cole a chave da DeepSeek (comeca com sk-).
+set /p "IA_KEY=  Chave: "
+if defined IA_KEY set "IA_KEY=%IA_KEY:"=%"
+if not defined IA_KEY set "IA_KEY=x"
+call :SALVAR_CFG
+echo.
+echo   Chave da IA atualizada.
+timeout /t 1 >nul
+goto VERIFICAR_CHAVES
+
+:: grava o config atual (reusado pelas correcoes)
+:SALVAR_CFG
+>"%CFG%" echo TG_ENVIAR=%TG_ENVIAR%
+>>"%CFG%" echo TG_TOKEN=%TG_TOKEN%
+>>"%CFG%" echo TG_CHAT=%TG_CHAT%
+>>"%CFG%" echo IA_KEY=%IA_KEY%
 goto :eof
 
 :LOCALIZAR
