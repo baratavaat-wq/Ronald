@@ -1,3 +1,9 @@
-Corrigindo problema do sinal mostra A força do sinal em % nao dbm
-problema do envio do telegran
-problema da janela fecha sozinho
+- Corrigindo problema do sinal mostra A força do sinal em % nao dbm
+- Novo assistente de IA no final do teste (ate 10 perguntas).
+- A IA analisa o resultado e tira duvidas de rede/GPON.
+- Sinal Wi-Fi agora mostra a qualidade em porcentagem.
+- Laudos salvos em pasta propria (fora da area de trabalho).
+- Correcoes de estabilidade.
+- Corrigindo problema do sinal mostra A força do sinal em % nao dbm
+- problema do envio do telegran
+- problema da janela fecha sozinho
