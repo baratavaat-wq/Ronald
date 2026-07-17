@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1018"
+set "VER=1019"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -43,6 +43,7 @@ set "CFG=%CFG_DIR%\config.ini"
 set "TG_ENVIAR=sim"
 set "TG_TOKEN="
 set "TG_CHAT="
+set "IA_KEY="
 
 
 :: +=======================================================+
@@ -148,6 +149,7 @@ if not defined STAMP set "STAMP=sem_data"
 
 call :CHECAR_ATUALIZACAO
 call :CARREGAR_CONFIG
+call :GRAVAR_BASE
 echo.
 echo   ============================================
 echo     [OK] VERSAO %VER% carregada com sucesso!
@@ -304,6 +306,78 @@ if defined ALVO_EXTRA_IPV6 (set "TXT_EXTRA6=%ALVO_EXTRA_IPV6%") else (set "TXT_E
 ::   e avisa se LAN e Wi-Fi estao ligados AO MESMO TEMPO
 :: =========================================================
 set "PNET=%TEMP%\rede_info.ps1"
+set "PIA=%TEMP%\ia_ask.ps1"
+:: --- gera o script da IA (assistente) uma vez ---
+del "%PIA%" >nul 2>&1
+echo param([string]$key) >>"%PIA%"
+echo # ============================================================ >>"%PIA%"
+echo # Assistente IA - API oficial DeepSeek (chat/completions) >>"%PIA%"
+echo # A chave vem por parametro (lida do config.ini pelo .bat). >>"%PIA%"
+echo # ============================================================ >>"%PIA%"
+echo $ErrorActionPreference = 'Stop' >>"%PIA%"
+echo $OutputEncoding = [Text.Encoding]::UTF8 >>"%PIA%"
+echo try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {} >>"%PIA%"
+echo.>>"%PIA%"
+echo # --- configuracao central (trocar aqui se mudar de modelo/URL) --- >>"%PIA%"
+echo $API_URL   = 'https://api.deepseek.com/chat/completions' >>"%PIA%"
+echo $API_MODEL = 'deepseek-v4-flash' >>"%PIA%"
+echo $TIMEOUT   = 60 >>"%PIA%"
+echo $LIMITE_CHARS = 4000 >>"%PIA%"
+echo $LOG = Join-Path $env:ProgramData 'LaudoRede\ia.log' >>"%PIA%"
+echo.>>"%PIA%"
+echo function Gravar-Log($txt) { try { $ts=(Get-Date).ToString('yyyy-MM-dd HH:mm:ss'); Add-Content -Path $LOG -Value "$ts  $txt" -Encoding UTF8 } catch {} } >>"%PIA%"
+echo.>>"%PIA%"
+echo try { >>"%PIA%"
+echo   # le contexto (dados do teste) + pergunta do arquivo >>"%PIA%"
+echo   $raw = Get-Content -Path "$env:TEMP\ia_ctx.txt" -Raw -Encoding UTF8 >>"%PIA%"
+echo   $partes = $raw -split '###PERGUNTA###' >>"%PIA%"
+echo   $ctx = $partes[0].Trim() >>"%PIA%"
+echo   $perg = '' >>"%PIA%"
+echo   if ($partes.Count -gt 1) { $perg = $partes[1].Trim() } >>"%PIA%"
+echo   # respeita limite de caracteres do contexto >>"%PIA%"
+echo   if ($ctx.Length -gt $LIMITE_CHARS) { $ctx = $ctx.Substring(0,$LIMITE_CHARS) } >>"%PIA%"
+echo.>>"%PIA%"
+echo   $sys = 'Voce e um assistente tecnico de redes FTTH/GPON. Responda em portugues do Brasil, curto e pratico. Use a BASE DE CONHECIMENTO e os dados do teste quando fizer sentido. Se perguntarem algo em tempo real (noticias, se um site caiu agora), diga que nao tem dados em tempo real.' >>"%PIA%"
+echo   $kb = '' >>"%PIA%"
+echo   $kbPath = Join-Path $env:ProgramData 'LaudoRede\base_conhecimento.txt' >>"%PIA%"
+echo   if (Test-Path $kbPath) { $kb = Get-Content -Path $kbPath -Raw -Encoding UTF8 } >>"%PIA%"
+echo   if ($kb) { $sys = $sys + "`n`nBASE DE CONHECIMENTO:`n" + $kb } >>"%PIA%"
+echo   $userMsg = "Dados do teste: $ctx`n`nPergunta: $perg" >>"%PIA%"
+echo.>>"%PIA%"
+echo   $body = @{ model = $API_MODEL; messages = @( @{ role='system'; content=$sys }, @{ role='user'; content=$userMsg } ); stream = $false } ^| ConvertTo-Json -Depth 6 >>"%PIA%"
+echo   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PIA%"
+echo   $headers = @{ 'Authorization' = "Bearer $key"; 'Content-Type' = 'application/json' } >>"%PIA%"
+echo.>>"%PIA%"
+echo   $wr = Invoke-WebRequest -Uri $API_URL -Method Post -Headers $headers -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec $TIMEOUT -UseBasicParsing >>"%PIA%"
+echo   $jsonUtf8 = [Text.Encoding]::UTF8.GetString($wr.RawContentStream.ToArray()) >>"%PIA%"
+echo   $resp = $jsonUtf8 ^| ConvertFrom-Json >>"%PIA%"
+echo   $txt = $resp.choices[0].message.content >>"%PIA%"
+echo   Write-Host '' >>"%PIA%"
+echo   Write-Host '  --- Resposta da IA ---' -ForegroundColor Cyan >>"%PIA%"
+echo   [Console]::WriteLine($txt) >>"%PIA%"
+echo   Gravar-Log 'OK - resposta recebida.' >>"%PIA%"
+echo } >>"%PIA%"
+echo catch { >>"%PIA%"
+echo   # tenta extrair o codigo HTTP e o corpo do erro da API >>"%PIA%"
+echo   $code = 0 >>"%PIA%"
+echo   $corpo = '' >>"%PIA%"
+echo   try { if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } } catch {} >>"%PIA%"
+echo   try { $sr = New-Object IO.StreamReader($_.Exception.Response.GetResponseStream()); $corpo = $sr.ReadToEnd() } catch {} >>"%PIA%"
+echo   Write-Host '' >>"%PIA%"
+echo   switch ($code) { >>"%PIA%"
+echo     401 { Write-Host '  [IA] Chave invalida (401). Confira a IA_KEY no config.ini.' -ForegroundColor Yellow } >>"%PIA%"
+echo     402 { Write-Host '  [IA] Sem saldo (402). Adicione creditos na conta DeepSeek.' -ForegroundColor Yellow } >>"%PIA%"
+echo     429 { Write-Host '  [IA] Limite de requisicoes atingido (429). Aguarde e tente de novo.' -ForegroundColor Yellow } >>"%PIA%"
+echo     500 { Write-Host '  [IA] Erro no servidor da IA (500). Tente novamente em instantes.' -ForegroundColor Yellow } >>"%PIA%"
+echo     502 { Write-Host '  [IA] Servidor da IA indisponivel (502).' -ForegroundColor Yellow } >>"%PIA%"
+echo     503 { Write-Host '  [IA] Servico da IA sobrecarregado (503). Tente depois.' -ForegroundColor Yellow } >>"%PIA%"
+echo     default { Write-Host "  [IA] Nao consegui resposta (erro $code). Verifique a internet e a chave." -ForegroundColor Yellow } >>"%PIA%"
+echo   } >>"%PIA%"
+echo   if ($corpo) { Write-Host ('  Detalhe da API: ' + $corpo) -ForegroundColor DarkGray } >>"%PIA%"
+echo   else { Write-Host ('  Detalhe: ' + $_.Exception.Message) -ForegroundColor DarkGray } >>"%PIA%"
+echo   Gravar-Log ("ERRO $code - " + $_.Exception.Message) >>"%PIA%"
+echo } >>"%PIA%"
+
 del "%PNET%" >nul 2>&1
 echo param($pasta) >>"%PNET%"
 echo $det = @() >>"%PNET%"
@@ -1229,6 +1303,13 @@ echo.
 del "%PBEEP%" "%PFALA%" "%PWAIT%" "%PTG%" "%PNET%" "%PCHK%" "%PSAN%" "%PVER%" >nul 2>&1
 del "%TEMP%\speed_loop.bat" "%TEMP%\fast_loop.bat" "%TEMP%\lr_ver.ps1" "%TEMP%\lr_notas.txt" >nul 2>&1
 echo.
+
+:: =========================================================
+:: ASSISTENTE DE IA - ate 10 perguntas sobre o teste
+:: =========================================================
+call :ASSISTENTE_IA
+
+echo.
 pause
 endlocal
 exit /b 0
@@ -1406,9 +1487,10 @@ if exist "%CFG%" (
     if /i "%%a"=="TG_TOKEN" set "TG_TOKEN=%%b"
     if /i "%%a"=="TG_CHAT" set "TG_CHAT=%%b"
     if /i "%%a"=="TG_ENVIAR" set "TG_ENVIAR=%%b"
+    if /i "%%a"=="IA_KEY" set "IA_KEY=%%b"
   )
 )
-if defined TG_TOKEN if defined TG_CHAT goto :eof
+if defined TG_TOKEN if defined TG_CHAT if defined IA_KEY goto :eof
 
 cls
 echo =====================================================
@@ -1435,13 +1517,530 @@ echo   CHAT ID do grupo ^(comeca com -100...^).
 set /p "TG_CHAT=  Chat ID: "
 if defined TG_CHAT set "TG_CHAT=%TG_CHAT:"=%"
 
+:: --- chave da IA (assistente) - insiste com 2 alertas, depois libera ---
+if defined IA_KEY goto GRAVA_CONFIG
+set "IA_REC=0"
+
+:PEDIR_IA
+cls
+echo =====================================================
+echo             ASSISTENTE DE IA
+echo =====================================================
+echo.
+echo   No final do teste voce pode fazer ate 10 perguntas
+echo   a uma IA que entende de redes/GPON e analisa o
+echo   resultado do teste. Ajuda MUITO no diagnostico.
+echo.
+echo   Cole a chave da DeepSeek para ativar.
+echo.
+set "IA_KEY="
+set /p "IA_KEY=  Cole a chave da IA (ou ENTER para pular): "
+if defined IA_KEY set "IA_KEY=%IA_KEY:"=%"
+if defined IA_KEY goto GRAVA_CONFIG
+
+:: recusou (deixou em branco)
+set /a "IA_REC=%IA_REC%+1"
+if %IA_REC% GEQ 3 goto IA_LIBERA
+
+cls
+color 6F
+echo #############################################################
+echo #                     A T E N C A O                        #
+echo #############################################################
+echo.
+if %IA_REC%==1 (
+  echo   Voce nao colocou a chave da IA.
+  echo.
+  echo   A IA ajuda muito: explica o resultado, aponta se o
+  echo   problema e do cliente ou da operadora, e responde
+  echo   duvidas tecnicas na hora. E muito recomendada.
+) else (
+  echo   ULTIMO AVISO: sem a chave da IA voce perde o
+  echo   assistente que analisa o teste e tira duvidas.
+  echo.
+  echo   Recomendamos fortemente configurar agora.
+)
+echo.
+echo   Deseja colocar a chave agora?
+choice /c SN /n /m "  [S] Sim, colocar  [N] Nao, seguir sem IA: "
+color 0A
+if errorlevel 2 goto IA_LIBERA
+goto PEDIR_IA
+
+:IA_LIBERA
+:: seguiu sem IA - marca como desativada
+set "IA_KEY=x"
+color 0A
+echo.
+echo   Seguindo SEM o assistente de IA.
+echo   Voce pode configurar depois no config.ini.
+timeout /t 2 >nul
+
 :GRAVA_CONFIG
 >"%CFG%" echo TG_ENVIAR=%TG_ENVIAR%
 >>"%CFG%" echo TG_TOKEN=%TG_TOKEN%
 >>"%CFG%" echo TG_CHAT=%TG_CHAT%
+>>"%CFG%" echo IA_KEY=%IA_KEY%
 echo.
 echo   Configuracao salva em %CFG%
 timeout /t 2 >nul
+goto :eof
+
+:: =========================================================
+:: SUB-ROTINA: ASSISTENTE DE IA (OpenRouter)
+::   - ate 10 perguntas por execucao
+::   - manda os dados do teste junto para respostas uteis
+::   - a chave vem do config (IA_KEY), nunca do codigo
+:: =========================================================
+:ASSISTENTE_IA
+if not defined IA_KEY goto :eof
+if /i "%IA_KEY%"=="x" goto :eof
+
+echo.
+echo =====================================================
+echo             ASSISTENTE DE IA
+echo =====================================================
+echo.
+echo   Voce pode fazer ate 10 perguntas sobre o teste
+echo   ou sobre redes em geral. Digite "sair" para encerrar.
+echo.
+
+:: monta um resumo curto do teste pra dar contexto a IA
+set "CTX=Teste de rede. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Conexao: %CONEXAO%. Gateway: %GW%."
+if exist "%LAUDO%\PERDA_PACOTES.csv" (
+  for /f "usebackq skip=1 tokens=1,4,6,7,9 delims=;" %%a in ("%LAUDO%\PERDA_PACOTES.csv") do (
+    set "CTX=!CTX! [%%a: perda %%b, ping medio %%c ms, max %%d ms, classe %%e]"
+  )
+)
+
+set "NPERG=0"
+:LOOP_IA
+if %NPERG% GEQ 10 (
+  echo.
+  echo   Limite de 10 perguntas atingido.
+  goto :eof
+)
+set /a "SOBRAM=10-%NPERG%"
+echo.
+echo   (Perguntas restantes: %SOBRAM%)
+set "PERG="
+set /p "PERG=  Sua pergunta: "
+if not defined PERG goto LOOP_IA
+if /i "%PERG%"=="sair" goto :eof
+set /a "NPERG=%NPERG%+1"
+
+:: grava a pergunta e o contexto num arquivo pro powershell ler (evita problema de aspas)
+> "%TEMP%\ia_ctx.txt" echo %CTX%
+>> "%TEMP%\ia_ctx.txt" echo ###PERGUNTA###
+>> "%TEMP%\ia_ctx.txt" echo %PERG%
+
+echo.
+echo   Consultando a IA...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "%IA_KEY%"
+goto LOOP_IA
+
+:: =========================================================
+:: GRAVA a base de conhecimento (para a IA consultar)
+::   fica em ProgramData\LaudoRede\base_conhecimento.txt
+:: =========================================================
+:GRAVAR_BASE
+set "KB_DIR=%ProgramData%\LaudoRede"
+if not exist "%KB_DIR%" set "KB_DIR=%APPDATA%\LaudoRede"
+set "KB=%KB_DIR%\base_conhecimento.txt"
+:: reescreve a base sempre (garante versao nova ao atualizar)
+del "%KB%" >nul 2>&1
+echo BASE DE CONHECIMENTO TECNICA - REDES FTTH/GPON/WI-FI>>"%KB%"
+echo Manual de referencia para o assistente de IA do LAUDO DE REDE.>>"%KB%"
+echo Responda o tecnico usando estas informacoes com precisao e objetividade.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 1 - FIBRA OPTICA E GPON>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 1.1 POTENCIA OPTICA RECEBIDA ^(Rx^) NA ONU ===>>"%KB%"
+echo Faixa do padrao GPON ^(luz que a ONU RECEBE da rede^):>>"%KB%"
+echo - -8 a -20 dBm  = BOM/OTIMO. Trabalha tranquilo.>>"%KB%"
+echo - -21 a -24 dBm = ACEITAVEL. Funciona, fique de olho.>>"%KB%"
+echo - -25 a -26 dBm = FRACO. Instabilidade comeca a aparecer.>>"%KB%"
+echo - -27 dBm       = LIMITE. Muito perto de cair.>>"%KB%"
+echo - abaixo de -27 = CRITICO. ONU perde sync ^(LOS acende^).>>"%KB%"
+echo - acima de -8 ^(ex -5, -3^) = FORTE DEMAIS. Satura o receptor,>>"%KB%"
+echo   da erro de CRC, precisa de atenuador optico.>>"%KB%"
+echo LEMBRE: mais negativo = mais fraco. -18 e melhor que -25.>>"%KB%"
+echo Diferenca de 3 dB = metade ^(ou dobro^) da potencia.>>"%KB%"
+echo.>>"%KB%"
+echo === 1.2 POTENCIA TRANSMITIDA ^(Tx^) PELA ONU ===>>"%KB%"
+echo Normal: +0.5 a +5 dBm. >>"%KB%"
+echo - Tx muito baixo ou muito alto = ONU com defeito no laser.>>"%KB%"
+echo - Tx zero = ONU nao esta transmitindo ^(defeito ou desligada^).>>"%KB%"
+echo.>>"%KB%"
+echo === 1.3 ATENUACAO / PERDA NA FIBRA ===>>"%KB%"
+echo Cada elemento tira um pouco do sinal:>>"%KB%"
+echo - Fibra: ~0.3 a 0.4 dB por km ^(1490nm downstream^).>>"%KB%"
+echo - Conector: ~0.3 a 0.5 dB cada.>>"%KB%"
+echo - Emenda por fusao: ~0.05 a 0.1 dB ^(boa emenda^).>>"%KB%"
+echo - Splitter 1:8  = ~10.5 dB de perda.>>"%KB%"
+echo - Splitter 1:16 = ~13.5 dB de perda.>>"%KB%"
+echo - Splitter 1:32 = ~17 dB de perda.>>"%KB%"
+echo - Splitter 1:64 = ~20.5 dB de perda.>>"%KB%"
+echo Quanto maior o splitter, menos sinal sobra para cada cliente.>>"%KB%"
+echo.>>"%KB%"
+echo === 1.4 CAUSAS DE SINAL OPTICO RUIM ^(ordem de frequencia^) ===>>"%KB%"
+echo 1. Conector sujo ^(poeira/gordura/dedo na ponta^) - MAIS COMUM.>>"%KB%"
+echo 2. Fibra dobrada/curva fechada ^(atras de movel, enrolada apertada^).>>"%KB%"
+echo 3. Conector frouxo ou mal encaixado.>>"%KB%"
+echo 4. Patch cord ruim, velho ou pisado/prensado.>>"%KB%"
+echo 5. Conector queimado ^(por sinal forte em manutencao anterior^).>>"%KB%"
+echo 6. Emenda ruim na rede.>>"%KB%"
+echo 7. Splitter sobrecarregado.>>"%KB%"
+echo 8. Distancia grande / muitas emendas acumuladas.>>"%KB%"
+echo 9. CTO ^(caixa na rua^) com infiltracao ou conector oxidado.>>"%KB%"
+echo.>>"%KB%"
+echo === 1.5 COMO MELHORAR O SINAL OPTICO ^(procedimento^) ===>>"%KB%"
+echo 1. Desligar a ONU antes de mexer na fibra ^(seguranca do laser^).>>"%KB%"
+echo 2. Retirar o conector e limpar a ponta ^(caneta de limpeza optica>>"%KB%"
+echo    ou lenco proprio sem fiapo, com movimento unico^).>>"%KB%"
+echo 3. Verificar visualmente se a ponta nao esta lascada/arranhada.>>"%KB%"
+echo 4. Reencaixar firme ate ouvir/sentir o click.>>"%KB%"
+echo 5. Conferir se a fibra nao esta dobrada em nenhum ponto do trajeto.>>"%KB%"
+echo 6. Se possivel, trocar o patch cord por um novo e testar.>>"%KB%"
+echo 7. Religar a ONU e aguardar sincronizar ^(luz PON verde^).>>"%KB%"
+echo 8. Se o sinal continuar ruim, o problema esta na rede externa>>"%KB%"
+echo    ^(drop, CTO, splitter^) - acionar a equipe externa.>>"%KB%"
+echo NUNCA olhar direto na ponta da fibra ^(laser invisivel, dana a vista^).>>"%KB%"
+echo.>>"%KB%"
+echo === 1.6 LUZES DA ONU/ONT ===>>"%KB%"
+echo - POWER/PWR: alimentacao. Apagada = sem energia ^(fonte/tomada/botao^).>>"%KB%"
+echo - PON: sincronismo com a OLT.>>"%KB%"
+echo    * Verde fixa = sincronizada, tudo certo.>>"%KB%"
+echo    * Piscando = procurando/negociando sinal.>>"%KB%"
+echo    * Apagada = nem tenta ^(ver fibra/LOS^).>>"%KB%"
+echo - LOS: perda de sinal optico.>>"%KB%"
+echo    * Apagada = TEM sinal ^(bom^).>>"%KB%"
+echo    * Vermelha ^(fixa ou piscando^) = SEM sinal optico. Prioridade!>>"%KB%"
+echo      Fibra cortada, conector solto, sinal fraco demais.>>"%KB%"
+echo - LAN/1-4: porta de cabo. Acende com cabo conectado a um aparelho.>>"%KB%"
+echo - WLAN/Wi-Fi/2.4G/5G: redes sem fio ligadas.>>"%KB%"
+echo - TEL/PHONE: linha de telefone ^(ONU com voz^).>>"%KB%"
+echo REGRA: LOS vermelha = nada de internet ate resolver o optico.>>"%KB%"
+echo Nao adianta reiniciar ONU nem mexer no Wi-Fi com LOS vermelha.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 2 - WI-FI>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 2.1 SINAL WI-FI: %% vs dBm ===>>"%KB%"
+echo O Windows mostra QUALIDADE em %% ^(0-100^), NAO dBm. Escalas diferentes.>>"%KB%"
+echo Relacao aproximada ^(nao exata^):>>"%KB%"
+echo - 100%% ~ -30 dBm ^| 90%% ~ -42 ^| 80%% ~ -50 ^| 70%% ~ -58>>"%KB%"
+echo - 60%% ~ -63 ^| 50%% ~ -67 ^| 40%% ~ -72 ^| 30%% ~ -76>>"%KB%"
+echo - 25%% ~ -80 ^| 10%% ~ -85 ^| 0%% ~ -90>>"%KB%"
+echo Para dBm exato, medir no proprio aparelho.>>"%KB%"
+echo.>>"%KB%"
+echo Escala dBm ^(medida real^):>>"%KB%"
+echo - -30 otimo ^| -50 muito bom ^| -60 bom ^| -67 limite aceitavel>>"%KB%"
+echo - -70 fraco ^| -80 ruim ^| -90 sem conexao util>>"%KB%"
+echo Abaixo de -67 dBm, video HD e jogos ja sentem.>>"%KB%"
+echo.>>"%KB%"
+echo === 2.2 GERACOES WI-FI ===>>"%KB%"
+echo - Wi-Fi 4 ^(802.11n^): 2.4 e 5 GHz. ~150-600 Mbps. Antigo mas comum.>>"%KB%"
+echo - Wi-Fi 5 ^(802.11ac^): so 5 GHz. ~433 Mbps a 3.5 Gbps. Padrao atual.>>"%KB%"
+echo - Wi-Fi 6 ^(802.11ax^): 2.4/5 GHz. Melhor com muitos aparelhos, menor>>"%KB%"
+echo   latencia, mais bateria nos dispositivos. Otimo para casa cheia.>>"%KB%"
+echo - Wi-Fi 6E: Wi-Fi 6 + faixa 6 GHz ^(nova, muito limpa, sem vizinhos ainda^).>>"%KB%"
+echo - Wi-Fi 7 ^(802.11be^): 2.4/5/6 GHz. Canais de 320 MHz, latencia baixissima.>>"%KB%"
+echo Aparelho so conecta na geracao que ELE suporta, mesmo com roteador novo.>>"%KB%"
+echo.>>"%KB%"
+echo === 2.3 BANDAS 2.4 vs 5 GHz ===>>"%KB%"
+echo 2.4 GHz:>>"%KB%"
+echo - Alcance MAIOR, atravessa parede melhor.>>"%KB%"
+echo - Mais LENTA, mais interferencia ^(micro-ondas, bluetooth, vizinhos^).>>"%KB%"
+echo - Boa para: aparelhos longe, IoT ^(camera, lampada^), casa grande.>>"%KB%"
+echo 5 GHz:>>"%KB%"
+echo - MAIS RAPIDA e limpa.>>"%KB%"
+echo - Alcance MENOR, parede atrapalha mais.>>"%KB%"
+echo - Boa para: aparelhos perto, streaming 4K, jogos, download.>>"%KB%"
+echo Muitos roteadores tem as duas com o mesmo nome ^(band steering^) e>>"%KB%"
+echo escolhem sozinho. As vezes vale separar em 2 nomes ^(ex: "Casa" e "Casa_5G"^).>>"%KB%"
+echo.>>"%KB%"
+echo === 2.4 CANAIS WI-FI ===>>"%KB%"
+echo 2.4 GHz: use SOMENTE 1, 6 ou 11 ^(os unicos que nao se sobrepoem^).>>"%KB%"
+echo Se estiver em outro canal com vizinhos, mude para um desses.>>"%KB%"
+echo 5 GHz: mais canais. Os DFS ^(52 a 144^) podem sumir segundos se>>"%KB%"
+echo detectam radar ^(perto de aeroporto/meteorologia^).>>"%KB%"
+echo Sinais de canal lotado: ping instavel, quedas rapidas, lentidao>>"%KB%"
+echo mesmo com bom sinal. Use um app analisador para achar canal livre.>>"%KB%"
+echo.>>"%KB%"
+echo === 2.5 MELHORAR O WI-FI ===>>"%KB%"
+echo - Roteador em local alto, central, longe de metal/espelho/aquario.>>"%KB%"
+echo - Longe de micro-ondas e telefone sem fio.>>"%KB%"
+echo - Antenas: uma na vertical, outra inclinada, ajuda a cobrir andares.>>"%KB%"
+echo - Aparelho longe -^> usar 2.4 GHz OU repetidor/mesh.>>"%KB%"
+echo - Trocar canal se ha muitos vizinhos.>>"%KB%"
+echo - Atualizar firmware do roteador.>>"%KB%"
+echo - Casa grande/varios andares -^> sistema Mesh e melhor que repetidor.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 3 - MEDIDAS DE REDE ^(PING, JITTER, PERDA^)>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 3.1 LATENCIA / PING ===>>"%KB%"
+echo - 0-30 ms   = excelente ^(jogo, video-chamada sem problema^)>>"%KB%"
+echo - 30-60 ms  = bom ^(uso geral tranquilo^)>>"%KB%"
+echo - 60-100 ms = aceitavel ^(navega bem; jogo competitivo sente^)>>"%KB%"
+echo - 100-150 ms = ruim ^(video trava, jogo ruim^)>>"%KB%"
+echo - +150 ms = pessimo para tempo real>>"%KB%"
+echo Ping ATE o gateway/roteador:>>"%KB%"
+echo - Cabo: 1-5 ms ^| Wi-Fi: 1-30 ms ^(conforme sinal^).>>"%KB%"
+echo Ping alto ate o PROPRIO roteador = problema LOCAL, nao da operadora.>>"%KB%"
+echo.>>"%KB%"
+echo === 3.2 JITTER ===>>"%KB%"
+echo Jitter = variacao do ping ^(maior menos menor^).>>"%KB%"
+echo - ate 20 ms otimo ^| 20-50 bom ^| 50-100 atencao ^| +100 ruim.>>"%KB%"
+echo Jitter alto = voz picotando, video travando MESMO com boa velocidade.>>"%KB%"
+echo Vilao classico do "minha net e rapida mas trava".>>"%KB%"
+echo.>>"%KB%"
+echo === 3.3 PERDA DE PACOTES ===>>"%KB%"
+echo - 0%% perfeito ^| ate 1%% normal ^| 1-2.5%% atencao>>"%KB%"
+echo - +2.5%% problema ^| +5%% grave>>"%KB%"
+echo REGRAS DE OURO ^(nao condenar link a toa^):>>"%KB%"
+echo - Perda SO no gateway = LOCAL ^(cabo/Wi-Fi/roteador do cliente^).>>"%KB%"
+echo - Perda so DEPOIS do gateway ^(gateway limpo^) = FORA ^(operadora/rota^),>>"%KB%"
+echo   NAO condena equipamento do cliente.>>"%KB%"
+echo - 1 pacote isolado perdido pode ser rate-limit ICMP do destino,>>"%KB%"
+echo   NAO e perda real. Nao reprovar link por isso.>>"%KB%"
+echo - Pico unico de ping, sem jitter alto e sem perda, NAO reprova.>>"%KB%"
+echo.>>"%KB%"
+echo === 3.4 DIAGNOSTICO POR TRECHO ^(onde esta o problema^) ===>>"%KB%"
+echo - Ruim SO no roteador -^> LOCAL ^(Wi-Fi longe, cabo, roteador^).>>"%KB%"
+echo - Roteador OK, internet ruim -^> caminho da OPERADORA.>>"%KB%"
+echo - Perda cresce conforme sai -^> ROTA/operadora.>>"%KB%"
+echo - Tudo ruim junto -^> saturacao do link OU acesso/optico ^(ONU^).>>"%KB%"
+echo - Ruim so a noite -^> saturacao ^(horario de pico^).>>"%KB%"
+echo - Ruim so num site/servico -^> problema daquele servico, nao da conexao.>>"%KB%"
+echo SEMPRE olhar o gateway primeiro: separa problema do cliente do de fora.>>"%KB%"
+echo Isso evita abrir chamado errado na operadora.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 4 - PROBLEMAS COMUNS E SOLUCOES>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 4.1 CONECTIVIDADE ===>>"%KB%"
+echo - "Cai so no Wi-Fi, cabo funciona" -^> Wi-Fi. Aproximar, mudar canal,>>"%KB%"
+echo    ver banda ^(2.4 vs 5^), atualizar firmware, considerar mesh.>>"%KB%"
+echo - "Sem internet em tudo, LOS vermelha" -^> optico. Limpar/reencaixar>>"%KB%"
+echo    conector, ver fibra dobrada. Persistiu = rede externa.>>"%KB%"
+echo - "Sem internet, LOS apagada e PON verde" -^> nao e optico. Ver se e>>"%KB%"
+echo    IP ^(release/renew^), DNS, ou config do roteador.>>"%KB%"
+echo - "Cai sozinho de tempos em tempos" -^> sinal optico no limite ^(-25 a -27^),>>"%KB%"
+echo    Wi-Fi com interferencia, ONU superaquecendo, ou fonte fraca.>>"%KB%"
+echo.>>"%KB%"
+echo === 4.2 SITE / NAVEGACAO ===>>"%KB%"
+echo - "Site nao abre mas WhatsApp/ping funciona" -^> DNS. Trocar para>>"%KB%"
+echo    8.8.8.8 / 8.8.4.4 ^(Google^) ou 1.1.1.1 ^(Cloudflare^).>>"%KB%"
+echo - "So um site nao abre" -^> problema daquele site ou bloqueio, nao da net.>>"%KB%"
+echo - "Navega lento mas ping ok" -^> pode ser DNS lento ou Wi-Fi fraco.>>"%KB%"
+echo.>>"%KB%"
+echo === 4.3 VELOCIDADE ===>>"%KB%"
+echo - "Velocidade menor que o plano" -^> testar no CABO. Cabo bate o plano>>"%KB%"
+echo    = problema e o Wi-Fi. Cabo tambem nao bate = link/optico/operadora.>>"%KB%"
+echo - "Upload muito baixo" -^> em GPON pode ser sinal optico ruim ou saturacao.>>"%KB%"
+echo - "Speedtest bom mas tudo trava" -^> nao e velocidade, e jitter/perda.>>"%KB%"
+echo - Pequena diferenca do plano e normal ^(overhead ~10%%^). Grande nao e.>>"%KB%"
+echo.>>"%KB%"
+echo === 4.4 TEMPO REAL ^(jogo, chamada, video^) ===>>"%KB%"
+echo - "Jogo com lag/ping alto" -^> latencia e jitter, NAO velocidade.>>"%KB%"
+echo    Preferir cabo, 5 GHz perto do roteador, fechar downloads.>>"%KB%"
+echo - "Chamada de video picotando" -^> jitter/perda. Mesmo com net rapida.>>"%KB%"
+echo - "Live/stream travando ao SUBIR" -^> upload baixo ou instavel.>>"%KB%"
+echo.>>"%KB%"
+echo === 4.5 INTERMITENCIA / HORARIO ===>>"%KB%"
+echo - "So a noite fica ruim" -^> saturacao ^(pico^). Cabo tambem ruim = link>>"%KB%"
+echo    do provedor no pico. So Wi-Fi = interferencia ^(vizinhos ligam tudo^).>>"%KB%"
+echo - "Melhora quando reinicia e piora com o tempo" -^> ONU/roteador>>"%KB%"
+echo    esquentando ou vazamento de memoria; ver ventilacao e firmware.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 5 - PROCEDIMENTOS RAPIDOS>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 5.1 LIMPAR CONEXAO ^(IP travado^) ===>>"%KB%"
+echo No CMD ^(como admin^):>>"%KB%"
+echo - ipconfig /flushdns   ^(limpa cache DNS - nao precisa admin^)>>"%KB%"
+echo - ipconfig /release    ^(solta o IP - precisa admin^)>>"%KB%"
+echo - ipconfig /renew      ^(pega IP novo - precisa admin^)>>"%KB%"
+echo - arp -d *             ^(limpa tabela ARP - precisa admin^)>>"%KB%"
+echo Util depois de trocar de rede Wi-Fi ou quando o IP "trava".>>"%KB%"
+echo.>>"%KB%"
+echo === 5.2 TROCAR DNS ===>>"%KB%"
+echo Quando site nao abre mas a conexao funciona:>>"%KB%"
+echo - Google: 8.8.8.8 e 8.8.4.4>>"%KB%"
+echo - Cloudflare: 1.1.1.1 e 1.0.0.1>>"%KB%"
+echo Configurar nas propriedades do adaptador ^(IPv4^) ou no roteador.>>"%KB%"
+echo.>>"%KB%"
+echo === 5.3 TESTAR SE E LOCAL OU DA OPERADORA ===>>"%KB%"
+echo 1. Ping no gateway ^(roteador^). Ruim? Problema local.>>"%KB%"
+echo 2. Gateway ok? Ping em 8.8.8.8. Ruim so aqui = operadora/rota.>>"%KB%"
+echo 3. Teste no CABO para tirar o Wi-Fi da jogada.>>"%KB%"
+echo 4. Se cabo resolve = Wi-Fi. Se nao = link/optico/operadora.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 6 - EQUIPAMENTOS E TERMOS>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 6.1 EQUIPAMENTOS FTTH ===>>"%KB%"
+echo - OLT: central da operadora ^(cabeca da rede optica^).>>"%KB%"
+echo - ONU/ONT: na casa do cliente, recebe a fibra.>>"%KB%"
+echo - Splitter: divide 1 fibra para varios ^(1:8, 1:16, 1:32, 1:64^).>>"%KB%"
+echo - Patch cord: cordao optico curto ^(tomada optica ate a ONU^).>>"%KB%"
+echo - Drop: fibra que vai da rua ate a casa.>>"%KB%"
+echo - CTO: caixa na rua/poste onde o drop se conecta.>>"%KB%"
+echo - Atenuador: reduz sinal quando esta forte demais.>>"%KB%"
+echo.>>"%KB%"
+echo === 6.2 TERMINOLOGIA ===>>"%KB%"
+echo - RTT: tempo de ida e volta do ping.>>"%KB%"
+echo - dBm: potencia do sinal; mais negativo = mais fraco.>>"%KB%"
+echo - Gateway: roteador/porta de saida da rede local.>>"%KB%"
+echo - Latencia: atraso. Jitter: variacao do atraso. Perda: pacotes que somem.>>"%KB%"
+echo - LOS: Loss of Signal ^(perda de sinal optico^).>>"%KB%"
+echo - PON: rede optica passiva; luz PON = sincronismo.>>"%KB%"
+echo - CRC: erro de integridade de dados ^(sinal forte/ruim causa^).>>"%KB%"
+echo - Overhead: peso extra dos dados; por isso velocidade nunca e 100%%.>>"%KB%"
+echo - Band steering: roteador junta 2.4 e 5 GHz num nome so.>>"%KB%"
+echo - Mesh: varios pontos de Wi-Fi formando uma rede unica.>>"%KB%"
+echo - DFS: canais 5 GHz que cedem lugar a radar.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 7 - COMO O ASSISTENTE DEVE RESPONDER>>"%KB%"
+echo #####################################################>>"%KB%"
+echo - Portugues do Brasil, direto e pratico ^(tecnico tem pressa^).>>"%KB%"
+echo - Use os NUMEROS reais do teste que vierem no contexto.>>"%KB%"
+echo - Sempre separe "problema local ^(cliente^)" de "problema de fora ^(operadora^)".>>"%KB%"
+echo - NUNCA condene link/operadora por pico isolado ou 1 pacote perdido.>>"%KB%"
+echo - Priorize o optico quando houver LOS vermelha.>>"%KB%"
+echo - Se perguntarem algo em tempo real ^(noticia, site caiu agora^), diga>>"%KB%"
+echo   que nao tem acesso a dados em tempo real.>>"%KB%"
+echo - Nao invente numero. Se faltar dado, diga o que verificar.>>"%KB%"
+echo - Respostas curtas e resolutivas, nada de enrolar.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 8 - CONFIGURACAO DE ROTEADORES>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 8.1 ACESSO AO ROTEADOR ===>>"%KB%"
+echo Enderecos comuns de acesso ^(digitar no navegador^):>>"%KB%"
+echo - 192.168.0.1  ^(D-Link, alguns TP-Link, Multilaser^)>>"%KB%"
+echo - 192.168.1.1  ^(TP-Link, Intelbras, muitos ONUs^)>>"%KB%"
+echo - 192.168.15.1 ^(Intelbras ONU/roteador^)>>"%KB%"
+echo - 192.168.25.1 ^(algumas ONUs GPON^)>>"%KB%"
+echo - 10.0.0.1     ^(alguns modelos^)>>"%KB%"
+echo Usuario/senha padrao comuns: admin/admin, admin/senha em branco,>>"%KB%"
+echo admin/gvt12345 ^(antigas^), user/user. Se mudaram, so resetando.>>"%KB%"
+echo O IP certo tambem aparece como "gateway padrao" no ipconfig.>>"%KB%"
+echo.>>"%KB%"
+echo === 8.2 O QUE CONFIGURAR NUM ROTEADOR NOVO ===>>"%KB%"
+echo 1. Trocar a senha de admin ^(seguranca^).>>"%KB%"
+echo 2. Definir nome da rede ^(SSID^) e senha do Wi-Fi ^(WPA2 ou WPA3^).>>"%KB%"
+echo 3. Escolher canal ^(2.4 GHz: 1, 6 ou 11^).>>"%KB%"
+echo 4. Se quiser, separar 2.4 e 5 GHz em nomes diferentes.>>"%KB%"
+echo 5. Atualizar firmware se houver.>>"%KB%"
+echo 6. Em ONU com roteador: modo bridge ou roteador conforme a operadora.>>"%KB%"
+echo.>>"%KB%"
+echo === 8.3 MODO BRIDGE vs ROTEADOR ===>>"%KB%"
+echo - Modo ROTEADOR: a ONU faz o Wi-Fi e distribui os IPs. Padrao residencial.>>"%KB%"
+echo - Modo BRIDGE: a ONU so passa a conexao; quem roteia e outro roteador.>>"%KB%"
+echo    Usado quando o cliente quer usar o proprio roteador melhor.>>"%KB%"
+echo Dois roteadores em modo roteador ao mesmo tempo = "duplo NAT",>>"%KB%"
+echo causa problema em jogo, camera, acesso remoto. Um deve ser bridge/AP.>>"%KB%"
+echo.>>"%KB%"
+echo === 8.4 WPA2 vs WPA3 ===>>"%KB%"
+echo - WPA2: seguro e compativel com tudo. Padrao seguro atual.>>"%KB%"
+echo - WPA3: mais novo e seguro, mas aparelho antigo pode nao conectar.>>"%KB%"
+echo - WEP: ANTIGO e inseguro, nunca usar.>>"%KB%"
+echo - Rede aberta ^(sem senha^): so para hotspot, nunca residencial.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 9 - CASOS DE CAMPO ^(exemplos reais^)>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 1: "Internet boa mas o jogo dele da lag" ===>>"%KB%"
+echo Teste mostra: ping gateway 3ms, internet 25ms, perda 0%%, jitter 12ms.>>"%KB%"
+echo Conclusao: a conexao esta otima. O lag no jogo pode ser:>>"%KB%"
+echo - Servidor do jogo longe ^(outro pais^).>>"%KB%"
+echo - Wi-Fi do quarto dele fraco ^(testar cabo/aproximar^).>>"%KB%"
+echo - Muita gente baixando na mesma casa no momento do jogo.>>"%KB%"
+echo NAO e caso de chamado na operadora.>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 2: "Cai toda hora a noite" ===>>"%KB%"
+echo Teste de dia: tudo bom. Cliente reclama so a noite.>>"%KB%"
+echo Provaveis causas:>>"%KB%"
+echo - Saturacao ^(todos os vizinhos usando no pico^).>>"%KB%"
+echo - Wi-Fi 2.4 GHz lotado a noite ^(todos ligam TV, celular^).>>"%KB%"
+echo Acao: agendar teste no horario do problema; ver se e cabo tambem>>"%KB%"
+echo ^(link^) ou so Wi-Fi ^(interferencia^). Trocar canal ajuda no Wi-Fi.>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 3: "Sinal -26 dBm e cai as vezes" ===>>"%KB%"
+echo Sinal optico no limite. Acao:>>"%KB%"
+echo - Limpar e reencaixar conector.>>"%KB%"
+echo - Ver fibra dobrada.>>"%KB%"
+echo - Se continuar -26 ou pior, acionar externa ^(drop/CTO/splitter^).>>"%KB%"
+echo Nao adianta trocar roteador: o problema e a luz chegando fraca.>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 4: "Velocidade so 100 de um plano de 300" ===>>"%KB%"
+echo Testar no cabo:>>"%KB%"
+echo - No cabo deu 290 -^> problema e o Wi-Fi ^(sinal/canal/aparelho antigo^).>>"%KB%"
+echo - No cabo tambem 100 -^> pode ser: config do plano na operadora,>>"%KB%"
+echo   sinal optico ruim, cabo de rede ruim ^(categoria baixa^), ou>>"%KB%"
+echo   placa de rede a 100 Mbps ^(nao Gigabit^).>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 5: "Site do banco nao abre, resto funciona" ===>>"%KB%"
+echo Ping e outros sites ok, so o banco nao.>>"%KB%"
+echo - Geralmente DNS ou o proprio site do banco fora.>>"%KB%"
+echo - Trocar DNS ^(8.8.8.8^). Se abrir, era DNS.>>"%KB%"
+echo - Se nao, e o site do banco ^(esperar/testar outro dispositivo^).>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 6: "ONU LOS vermelha depois da chuva" ===>>"%KB%"
+echo Muito comum: agua na CTO ou conector externo oxidado.>>"%KB%"
+echo - Verificar conector na ONU ^(limpar/reencaixar^).>>"%KB%"
+echo - LOS continua = problema externo ^(CTO/drop molhado^). Acionar externa.>>"%KB%"
+echo.>>"%KB%"
+echo === CASO 7: "Duplo NAT / camera nao acessa de fora" ===>>"%KB%"
+echo Cliente com roteador proprio atras da ONU, ambos roteando.>>"%KB%"
+echo - Colocar a ONU em bridge OU o roteador em modo AP/bridge.>>"%KB%"
+echo - Assim tem so um NAT e o acesso remoto/camera volta a funcionar.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 10 - CABOS DE REDE>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo === 10.1 CATEGORIAS ===>>"%KB%"
+echo - Cat5 ^(antigo^): ate 100 Mbps. NAO usar para planos altos.>>"%KB%"
+echo - Cat5e: ate 1 Gbps. Minimo recomendado hoje.>>"%KB%"
+echo - Cat6: ate 1-10 Gbps ^(curtas distancias^). Melhor.>>"%KB%"
+echo - Cat6a/Cat7: 10 Gbps. Para casos especiais.>>"%KB%"
+echo Cliente com plano de 500 Mega num cabo Cat5 velho = trava em 100.>>"%KB%"
+echo.>>"%KB%"
+echo === 10.2 PROBLEMAS DE CABO ===>>"%KB%"
+echo - Cabo pisado/dobrado/prensado por porta = perda e velocidade baixa.>>"%KB%"
+echo - Conector RJ45 mal crimpado = liga e cai, ou nao passa velocidade.>>"%KB%"
+echo - Cabo muito longo ^(^>100m^) = perda de sinal.>>"%KB%"
+echo - Placa de rede antiga a 100 Mbps limita mesmo com cabo bom.>>"%KB%"
+echo Sinal: LED da porta pisca estranho, velocidade trava em 100 exato.>>"%KB%"
+echo.>>"%KB%"
+echo #####################################################>>"%KB%"
+echo # PARTE 11 - REFERENCIA RAPIDA ^(TABELA MENTAL^)>>"%KB%"
+echo #####################################################>>"%KB%"
+echo.>>"%KB%"
+echo SINAL OPTICO Rx:  otimo -8/-20 ^| atencao -21/-24 ^| ruim -25/-27 ^| critico ^<-27>>"%KB%"
+echo SINAL WI-FI dBm:  otimo -30/-50 ^| bom -50/-67 ^| fraco -67/-80 ^| ruim ^<-80>>"%KB%"
+echo PING:             otimo 0-30 ^| bom 30-60 ^| aceit 60-100 ^| ruim +100>>"%KB%"
+echo JITTER:           otimo ^<20 ^| bom 20-50 ^| atencao 50-100 ^| ruim +100>>"%KB%"
+echo PERDA:            ok 0-1%% ^| atencao 1-2.5%% ^| problema +2.5%% ^| grave +5%%>>"%KB%"
+echo VELOCIDADE:       comparar com plano; testar no cabo; overhead ~10%%.>>"%KB%"
+echo.>>"%KB%"
+echo REGRA MESTRE: gateway ruim = problema do cliente ^(local^).>>"%KB%"
+echo               gateway bom + internet ruim = problema de fora ^(operadora^).>>"%KB%"
+echo               nunca condenar por 1 pico ou 1 pacote isolado.>>"%KB%"
 goto :eof
 
 :LOCALIZAR
