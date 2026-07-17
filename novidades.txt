@@ -1,4 +1,4 @@
- ------Alerta API DA ITA VOU ENVIAR NO TELEFONE PARA VOCÊ TECNICO---------
+ ------Alerta API DA IA VOU ENVIAR NO TELEFONE PARA VOCÊ TECNICO---------
 
 - Corrigindo problema do sinal mostra A força do sinal em % nao dbm
 - Novo assistente de IA no final do teste (ate 10 perguntas).
