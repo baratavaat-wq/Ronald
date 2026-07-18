@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1032"
+set "VER=1033"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -382,7 +382,7 @@ echo   if ($partes.Count -gt 1) { $perg = $partes[1].Trim() } >>"%PIA%"
 echo   # respeita limite de caracteres do contexto >>"%PIA%"
 echo   if ($ctx.Length -gt $LIMITE_CHARS) { $ctx = $ctx.Substring(0,$LIMITE_CHARS) } >>"%PIA%"
 echo.>>"%PIA%"
-echo   $sys = 'Voce e um assistente tecnico de redes FTTH/GPON. Responda em portugues do Brasil, curto e pratico. Use a BASE DE CONHECIMENTO e os dados do teste quando fizer sentido. Se perguntarem algo em tempo real (noticias, se um site caiu agora), diga que nao tem dados em tempo real.' >>"%PIA%"
+echo   $sys = 'Voce e um assistente tecnico de redes FTTH/GPON. Responda em portugues do Brasil, curto e pratico. REGRA CRITICA: os unicos numeros medidos sao os que aparecem em DADOS DO TESTE. Este teste NAO mede quantidade de dispositivos conectados, potencia optica em dBm, canal Wi-Fi, velocidade contratada nem consumo de banda. NUNCA some, calcule ou invente numeros que nao estao nos dados, e nunca trate ping ou perda como contagem de aparelhos. Se a resposta depender de algo nao medido, diga que o teste nao mediu isso e explique como o tecnico pode verificar. Use a BASE DE CONHECIMENTO para conceitos. Se perguntarem algo em tempo real (noticias, site fora do ar agora), diga que nao tem dados em tempo real.' >>"%PIA%"
 echo   $kb = '' >>"%PIA%"
 echo   $kbPaths = @((Join-Path $env:ProgramData 'LaudoRede\base_conhecimento.txt'),(Join-Path $env:APPDATA 'LaudoRede\base_conhecimento.txt'),(Join-Path $env:TEMP 'LaudoRede\base_conhecimento.txt')) >>"%PIA%"
 echo   foreach ($kp in $kbPaths) { if (Test-Path $kp) { $kb = Get-Content -Path $kp -Raw -Encoding UTF8; break } } >>"%PIA%"
@@ -1685,13 +1685,38 @@ if not defined IA_KEY goto IA_SEM_CHAVE
 if /i "%IA_KEY%"=="x" goto IA_SEM_CHAVE
 
 :: monta um resumo curto do teste pra dar contexto a IA
-set "CTX=Teste de rede. O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Aparelhos no local: %APARELHOS%. Conexao: %CONEXAO%. Gateway: %GW%. Speedtest rodando durante a coleta (S/N): %SATURA% - se S, ping alto e esperado por saturacao, nao conte como defeito."
+set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Equipamentos que o tecnico informou estarem no local: %APARELHOS% (isto NAO e contagem de dispositivos na rede). Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest rodando durante a coleta (S/N): %SATURA% - se S, ping alto e esperado por saturacao, nao conte como defeito. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. Medicoes por destino a seguir:"
 if exist "%LAUDO%\PERDA_PACOTES.csv" (
   for /f "usebackq skip=1 tokens=1,4,6,7,9 delims=;" %%a in ("%LAUDO%\PERDA_PACOTES.csv") do (
-    set "CTX=!CTX! [%%a: perda %%b, ping medio %%c ms, max %%d ms, classe %%e]"
+    set "CTX=!CTX! [destino %%a: perda %%b por cento, ping medio %%c ms, ping maximo %%d ms, classificacao %%e]"
   )
 )
 
+:: =========================================================
+:: 1) LAUDO AUTOMATICO DA IA (analise do teste)
+:: =========================================================
+echo.
+echo =====================================================
+echo          ANALISE DA IA - LAUDO AUTOMATICO
+echo =====================================================
+echo.
+echo   Analisando o resultado do teste, aguarde...
+> "%TEMP%\ia_ctx.txt" echo %CTX%
+>> "%TEMP%\ia_ctx.txt" echo ###PERGUNTA###
+>> "%TEMP%\ia_ctx.txt" echo Analise este teste e escreva um laudo tecnico curto: 1 - situacao geral da conexao; 2 - se o problema e local do cliente ou de fora (operadora), ou se esta tudo certo; 3 - o que o tecnico deve fazer agora. Use SOMENTE os numeros que estao em DADOS DO TESTE. Nao cite quantidade de aparelhos conectados, potencia optica, canal nem velocidade contratada, pois nada disso foi medido.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "%IA_KEY%" "%LAUDO%\LAUDO_IA.txt"
+echo.
+echo   -----------------------------------------------------
+echo   A IA pode cometer erros. Confira sempre os numeros do
+echo   laudo tecnico ^(VEREDITO.txt^) antes de decidir.
+echo   -----------------------------------------------------
+if exist "%LAUDO%\LAUDO_IA.txt" echo   Analise salva em: %LAUDO%\LAUDO_IA.txt
+echo.
+pause
+
+:: =========================================================
+:: 2) ASSISTENTE - ate 10 perguntas
+:: =========================================================
 echo.
 echo =====================================================
 echo             ASSISTENTE DE IA
