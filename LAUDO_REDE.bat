@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1029"
+set "VER=1030"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -224,6 +224,44 @@ if not defined CLIENTE goto PERGUNTA_CLIENTE
 set "CLIENTE=%CLIENTE:"=%"
 if not defined CLIENTE goto PERGUNTA_CLIENTE
 
+:: =========================================================
+:: PERGUNTA 3 - ID DA O.S. (obrigatorio)
+:: =========================================================
+:PERGUNTA_OS
+set "OS_ID="
+echo.
+echo  ----------------------------------------------------
+echo  ID DA O.S. ^(ordem de servico^)
+echo  Digite o numero / codigo da O.S. do atendimento.
+echo  Se nao houver O.S., digite SEM
+echo.
+set /p "OS_ID=  ID da O.S.: "
+if not defined OS_ID goto PERGUNTA_OS
+set "OS_ID=%OS_ID:"=%"
+if not defined OS_ID goto PERGUNTA_OS
+
+:: =========================================================
+:: PERGUNTA 4 - APARELHOS NO LOCAL (1 obrigatorio, 2o opcional)
+:: =========================================================
+:PERGUNTA_APAR
+set "APAR1="
+set "APAR2="
+echo.
+echo  ----------------------------------------------------
+echo  APARELHOS NO LOCAL DO TESTE
+echo  Informe o aparelho principal. Se houver um segundo,
+echo  informe depois ^(ou ENTER para pular^).
+echo  Exemplos: ONU Intelbras 121AC / Roteador TP-Link C6
+echo.
+set /p "APAR1=  Aparelho 1: "
+if not defined APAR1 goto PERGUNTA_APAR
+set "APAR1=%APAR1:"=%"
+if not defined APAR1 goto PERGUNTA_APAR
+set /p "APAR2=  Aparelho 2 ^(ENTER se so tem um^): "
+if defined APAR2 set "APAR2=%APAR2:"=%"
+set "APARELHOS=%APAR1%"
+if defined APAR2 set "APARELHOS=%APAR1% + %APAR2%"
+
 :: nome do cliente limpo, para usar no nome da pasta
 set "PSAN=%TEMP%\sanit.ps1"
 del "%PSAN%" >nul 2>&1
@@ -316,7 +354,7 @@ set "PNET=%TEMP%\rede_info.ps1"
 set "PIA=%TEMP%\ia_ask.ps1"
 :: --- gera o script da IA (assistente) uma vez ---
 del "%PIA%" >nul 2>&1
-echo param([string]$key) >>"%PIA%"
+echo param([string]$key,[string]$saida) >>"%PIA%"
 echo # ============================================================ >>"%PIA%"
 echo # Assistente IA - API oficial DeepSeek (chat/completions) >>"%PIA%"
 echo # A chave vem por parametro (lida do config.ini pelo .bat). >>"%PIA%"
@@ -362,6 +400,7 @@ echo   $txt = $resp.choices[0].message.content >>"%PIA%"
 echo   Write-Host '' >>"%PIA%"
 echo   Write-Host '  --- Resposta da IA ---' -ForegroundColor Cyan >>"%PIA%"
 echo   [Console]::WriteLine($txt) >>"%PIA%"
+echo   if ($saida -and $txt) { $txt ^| Out-File -FilePath $saida -Encoding UTF8 } >>"%PIA%"
 echo   Gravar-Log 'OK - resposta recebida.' >>"%PIA%"
 echo } >>"%PIA%"
 echo catch { >>"%PIA%"
@@ -475,11 +514,28 @@ set "CONEXAO="
 echo Detectando a conexao usada no teste...
 for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PNET%" "%LAUDO%"') do set "CONEXAO=%%i"
 if not defined CONEXAO set "CONEXAO=nao detectada"
+set "BANDA24=N"
+echo "%CONEXAO%" | find "2.4" >nul && set "BANDA24=S"
+if /i "%BANDA24%"=="S" (
+  echo.
+  echo   -----------------------------------------------------
+  echo   ATENCAO: conexao Wi-Fi em 2.4 GHz.
+  echo   Nessa banda o ping costuma ser mais alto e instavel
+  echo   ^(interferencia de vizinhos, micro-ondas, bluetooth^).
+  echo   Se rodar teste de velocidade junto, o ping sobe mais
+  echo   ainda por saturacao - isso NAO significa link ruim.
+  echo   Para julgar latencia com precisao: 5 GHz ou cabo,
+  echo   e sem speedtest.
+  echo   -----------------------------------------------------
+  echo.
+  pause
+)
 
 cls
 echo =====================================================
 echo          LAUDO COMPLETO DE REDE v%VER%
 echo          Tecnico: %TECNICO%   Cliente: %CLIENTE%
+echo          O.S.: %OS_ID%   Aparelhos: %APARELHOS%
 echo =====================================================
 echo.
 echo  Pasta do laudo    : %LAUDO%
@@ -505,6 +561,8 @@ echo.
 echo INICIO         : %date% %time%
 echo TECNICO        : %TECNICO%
 echo CLIENTE        : %CLIENTE%
+echo O.S.           : %OS_ID%
+echo APARELHOS      : %APARELHOS%
 echo CONEXAO        : %CONEXAO%
 echo DURACAO        : %MINUTOS% minutos
 echo COMPUTADOR     : %COMPUTERNAME%
@@ -551,6 +609,35 @@ if defined FASTEXE (echo   ^> fast     : %FASTEXE%) else (echo   [AVISO] fast na
 :PULA_FAST
 if /i "%USAR_SPEED%"=="N" echo   SPEEDTEST: nao sera executado (escolha do tecnico).
 if /i "%USAR_FAST%"=="N" echo   FAST: nao sera executado (escolha do tecnico).
+:: marca que havera saturacao proposital do link durante a coleta
+set "SATURA=N"
+if /i "%USAR_SPEED%"=="S" set "SATURA=S"
+if /i "%USAR_FAST%"=="S" set "SATURA=S"
+:: aviso vale para QUALQUER conexao: cabo, Wi-Fi 5 GHz ou 2.4 GHz
+if /i "%SATURA%"=="S" (
+  echo.
+  echo   -----------------------------------------------------
+  echo   AVISO SOBRE O TESTE DE VELOCIDADE
+  echo   Conexao detectada: %CONEXAO%
+  echo.
+  echo   O speedtest/fast roda em LOOP durante toda a coleta e
+  echo   satura o link de proposito. Com isso o ping SOBE em
+  echo   qualquer conexao ^(cabo, 5 GHz ou 2.4 GHz^) - no 2.4 GHz
+  echo   sobe mais ainda.
+  echo.
+  echo   Isso NAO sera contado como falha: o laudo relativiza
+  echo   ping medio, maximo e jitter. Perda de pacotes continua
+  echo   valendo normalmente.
+  echo.
+  echo   Enquanto o speedtest roda, e normal a navegacao ficar
+  echo   lenta ou travar - ele consome toda a banda de proposito.
+  echo.
+  echo   Para um veredito de latencia limpo, rode um teste
+  echo   SEM speedtest ^(de preferencia no cabo^).
+  echo   -----------------------------------------------------
+  echo.
+  pause
+)
 echo.
 
 :: =========================================================
@@ -595,7 +682,7 @@ echo Write-Host ("RESUMO " + $alvo + " " + $ver + " : timeouts=" + $to + "  ping
 :: =========================================================
 set "PFALA=%TEMP%\falar_status.ps1"
 del "%PFALA%" >nul 2>&1
-echo param($pasta, $modo, $ipv6Conta, $temIpv6, $mins, $tec, $cli, $conx, $aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6, $lRot, $lInt, $lSrv, $lIp6, $lExt, $lExt6) >>"%PFALA%"
+echo param($pasta, $modo, $ipv6Conta, $temIpv6, $mins, $tec, $cli, $conx, $aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6, $lRot, $lInt, $lSrv, $lIp6, $lExt, $lExt6, $os, $apar, $satur) >>"%PFALA%"
 echo if (-not $modo) { $modo = "curto" } >>"%PFALA%"
 echo try { Add-Type -AssemblyName System.Speech -ErrorAction SilentlyContinue } catch {} >>"%PFALA%"
 echo $voz = $null; try { $voz = New-Object System.Speech.Synthesis.SpeechSynthesizer } catch {} >>"%PFALA%"
@@ -652,6 +739,10 @@ echo $tg = @() >>"%PFALA%"
 echo $tg += "LAUDO DE REDE" >>"%PFALA%"
 echo $tg += "Tecnico: " + $tec >>"%PFALA%"
 echo $tg += "Cliente: " + $cli >>"%PFALA%"
+echo $tg += "O.S.: " + $os >>"%PFALA%"
+echo $tg += "Aparelhos: " + $apar >>"%PFALA%"
+echo if ($satur -eq 'S') { $tg += "OBS METODO: speedtest/fast rodando durante a coleta. Com o link saturado de proposito, ping alto E perda de pacotes sao esperados (a fila cheia descarta ICMP) e NAO foram usados para reprovar. Resultado NAO CONCLUSIVO para latencia e perda - repetir sem speedtest para julgar o link." } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4 GHz com teste de velocidade - essa banda satura facil e disputa meio com vizinhos. Ping e perda sobem por isso, nao por defeito. Repetir em 5 GHz ou cabo." } >>"%PFALA%"
 echo $tg += "Conexao: " + $conx >>"%PFALA%"
 echo $tg += "PC: " + $env:COMPUTERNAME + "   Data: " + (Get-Date -Format "dd/MM/yyyy HH:mm") >>"%PFALA%"
 echo $tg += "Duracao: " + $mins + " minutos" >>"%PFALA%"
@@ -665,6 +756,8 @@ echo $rel += "TECNICO .........: " + $tec >>"%PFALA%"
 echo $rel += "CLIENTE .........: " + $cli >>"%PFALA%"
 echo $rel += "CONEXAO USADA ...: " + $conx >>"%PFALA%"
 echo $rel += "DATA / HORA .....: " + (Get-Date -Format "dd/MM/yyyy HH:mm:ss") >>"%PFALA%"
+echo if ($satur -eq 'S') { $rel += "OBS METODO ......: speedtest/fast em execucao durante a coleta. O link foi saturado de proposito: ping medio, maximo, jitter E perda de pacotes sobem por saturacao (bufferbloat / fila cheia descartando ICMP). Por isso NADA disso foi usado para reprovar. Este teste NAO e conclusivo para latencia nem para perda - para julgar o link, repita sem speedtest." } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $conx -match '2\.4') { $rel += "OBS BANDA .......: Wi-Fi 2.4 GHz somado ao teste de velocidade. A banda de 2.4 GHz satura com facilidade e disputa o meio com vizinhos, micro-ondas e bluetooth: ping e perda sobem bastante durante o speedtest e isso NAO caracteriza defeito. Para avaliar o link, repita em 5 GHz ou no cabo, sem speedtest." } >>"%PFALA%"
 echo $rel += "COMPUTADOR ......: " + $env:COMPUTERNAME >>"%PFALA%"
 echo $rel += "USUARIO .........: " + $env:USERNAME >>"%PFALA%"
 echo $rel += "DURACAO DO TESTE : " + $mins + " minutos" >>"%PFALA%"
@@ -712,6 +805,7 @@ echo $nMed = NotaMed ([int]$pmedA[$i]) >>"%PFALA%"
 echo $nMax = NotaMax ([int]$pmaxA[$i]) >>"%PFALA%"
 echo $nJit = NotaJit ([int]$jitA[$i]) >>"%PFALA%"
 echo $nPer = NotaPer $pct >>"%PFALA%"
+echo if ($satur -eq 'S') { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($nPer -gt 2) { $nPer = 2 }; if ($nRaj -gt 2) { $nRaj = 2 } } >>"%PFALA%"
 echo $pior = $nRaj >>"%PFALA%"
 echo $quem = "rajada/perda continua" >>"%PFALA%"
 echo if ($nPer -gt $pior) { $pior = $nPer; $quem = "perda de pacotes" } >>"%PFALA%"
@@ -728,6 +822,12 @@ echo else { >>"%PFALA%"
 echo if ($nMax -gt $pior) { $pior = $nMax; $quem = "ping maximo " + $pmaxA[$i] + " ms" } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($nJit -gt $pior) { $pior = $nJit; $quem = "jitter " + $jitA[$i] + " ms" } >>"%PFALA%"
+echo if ($nPer -eq 0 -and $nRaj -le 1) { >>"%PFALA%"
+echo $pm = [int]$pmedA[$i] >>"%PFALA%"
+echo if ($pm -le 100 -and $pior -gt 2) { $pior = 2; $quem = "latencia elevada, porem SEM perda e com media usavel" } >>"%PFALA%"
+echo elseif ($pm -le 150 -and $pior -gt 3) { $pior = 3; $quem = "latencia alta, porem SEM perda" } >>"%PFALA%"
+echo if ($obs -eq "") { $obs = "sem perda de pacotes e ping medio de " + $pm + " ms (dentro do usavel) - a latencia foi anotada como observacao e NAO reprovou o aparelho/link." } >>"%PFALA%"
+echo } >>"%PFALA%"
 echo $classe = $ESC[$pior] >>"%PFALA%"
 echo if ($pior -eq 0) { $puxou = "" } else { $puxou = " (puxado por: " + $quem + ")" } >>"%PFALA%"
 echo $maxLbl = $ESC[[math]::Max($nMax,0)] >>"%PFALA%"
@@ -1089,7 +1189,7 @@ echo # fala desativada a pedido do usuario (sem Speak) >>"%PFALA%"
 :: =========================================================
 set "PTG=%TEMP%\tg_send.ps1"
 del "%PTG%" >nul 2>&1
-echo param($pasta, $tec, $cliNome) >>"%PTG%"
+echo param($pasta, $tec, $cliNome, $os, $apar) >>"%PTG%"
 echo $token = "%TG_TOKEN%" >>"%PTG%"
 echo $chat  = "%TG_CHAT%" >>"%PTG%"
 echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PTG%"
@@ -1132,7 +1232,7 @@ echo if (Test-Path $zip) { Remove-Item $zip -Force } >>"%PTG%"
 echo Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force >>"%PTG%"
 echo $f2 = New-Object System.Net.Http.MultipartFormDataContent >>"%PTG%"
 echo $f2.Add((New-Object System.Net.Http.StringContent($chat, [System.Text.Encoding]::UTF8)), "chat_id") >>"%PTG%"
-echo $f2.Add((New-Object System.Net.Http.StringContent(("Laudo completo - Tecnico: " + $tec + " - Cliente: " + $cliNome), [System.Text.Encoding]::UTF8)), "caption") >>"%PTG%"
+echo $f2.Add((New-Object System.Net.Http.StringContent(("Laudo completo - Tecnico: " + $tec + " - Cliente: " + $cliNome + " - O.S.: " + $os), [System.Text.Encoding]::UTF8)), "caption") >>"%PTG%"
 echo $fs = [System.IO.File]::OpenRead($zip) >>"%PTG%"
 echo $sc = New-Object System.Net.Http.StreamContent($fs) >>"%PTG%"
 echo $f2.Add($sc, "document", [System.IO.Path]::GetFileName($zip)) >>"%PTG%"
@@ -1156,8 +1256,9 @@ echo if (-not $segundos) { $segundos = 900 } >>"%PWAIT%"
 echo [Console]::TreatControlCAsInput = $true >>"%PWAIT%"
 echo $fim = (Get-Date).AddSeconds([int]$segundos) >>"%PWAIT%"
 echo while ((Get-Date) -lt $fim) { >>"%PWAIT%"
-echo $rest = [int]($fim - (Get-Date)).TotalSeconds >>"%PWAIT%"
-echo $m = [int]($rest / 60) >>"%PWAIT%"
+echo $rest = [int][math]::Floor(($fim - (Get-Date)).TotalSeconds) >>"%PWAIT%"
+echo if ($rest -lt 0) { $rest = 0 } >>"%PWAIT%"
+echo $m = [int][math]::Floor($rest / 60) >>"%PWAIT%"
 echo $s = $rest - ($m * 60) >>"%PWAIT%"
 echo Clear-Host >>"%PWAIT%"
 echo Write-Host "=====================================================" >>"%PWAIT%"
@@ -1271,9 +1372,9 @@ if defined FASTEXE  for %%A in ("%FASTEXE%")  do taskkill /F /IM "%%~nxA" >nul 2
 echo Aguardando os arquivos de log serem liberados...
 timeout /t 3 /nobreak >nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%MINUTOS%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6%
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%MINUTOS%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%"
 
-if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%"
+if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%" "%APARELHOS%"
 
 :: TELA FINAL
 echo.
@@ -1566,8 +1667,16 @@ goto :eof
 ::   - a chave vem do config (IA_KEY), nunca do codigo
 :: =========================================================
 :ASSISTENTE_IA
-if not defined IA_KEY goto :eof
-if /i "%IA_KEY%"=="x" goto :eof
+if not defined IA_KEY goto IA_SEM_CHAVE
+if /i "%IA_KEY%"=="x" goto IA_SEM_CHAVE
+
+:: monta um resumo curto do teste pra dar contexto a IA
+set "CTX=Teste de rede. O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Aparelhos no local: %APARELHOS%. Conexao: %CONEXAO%. Gateway: %GW%. Speedtest rodando durante a coleta (S/N): %SATURA% - se S, ping alto e esperado por saturacao, nao conte como defeito."
+if exist "%LAUDO%\PERDA_PACOTES.csv" (
+  for /f "usebackq skip=1 tokens=1,4,6,7,9 delims=;" %%a in ("%LAUDO%\PERDA_PACOTES.csv") do (
+    set "CTX=!CTX! [%%a: perda %%b, ping medio %%c ms, max %%d ms, classe %%e]"
+  )
+)
 
 echo.
 echo =====================================================
@@ -1577,14 +1686,6 @@ echo.
 echo   Voce pode fazer ate 10 perguntas sobre o teste
 echo   ou sobre redes em geral. Digite "sair" para encerrar.
 echo.
-
-:: monta um resumo curto do teste pra dar contexto a IA
-set "CTX=Teste de rede. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Conexao: %CONEXAO%. Gateway: %GW%."
-if exist "%LAUDO%\PERDA_PACOTES.csv" (
-  for /f "usebackq skip=1 tokens=1,4,6,7,9 delims=;" %%a in ("%LAUDO%\PERDA_PACOTES.csv") do (
-    set "CTX=!CTX! [%%a: perda %%b, ping medio %%c ms, max %%d ms, classe %%e]"
-  )
-)
 
 set "NPERG=0"
 :LOOP_IA
@@ -1611,6 +1712,18 @@ echo.
 echo   Consultando a IA...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "%IA_KEY%"
 goto LOOP_IA
+
+:IA_SEM_CHAVE
+echo.
+echo   -----------------------------------------------------
+echo   ASSISTENTE DE IA nao ativado neste computador.
+echo   Nao ha chave da IA no arquivo de configuracao:
+echo   %CFG%
+echo   Falta a linha  IA_KEY=  com a chave da DeepSeek.
+echo   Sem ela nao tem analise automatica nem perguntas.
+echo   -----------------------------------------------------
+timeout /t 6 >nul
+goto :eof
 
 :: =========================================================
 :: GRAVA a base de conhecimento (para a IA consultar)
