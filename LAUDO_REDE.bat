@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1033"
+set "VER=1034"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -321,8 +321,29 @@ echo  ABA 4 - PING EXTRA IPv4  (opcional)
 echo  Digite o alvo para abrir a aba extra, ou so ENTER para NAO abrir.
 echo  Exemplos: 1.1.1.1  /  9.9.9.9  /  200.160.2.3  /  globo.com
 echo.
+:PERGUNTA_EXTRA4
+set "ALVO_EXTRA="
 set /p "ALVO_EXTRA=  Alvo EXTRA IPv4 (ENTER = nenhum): "
-if defined ALVO_EXTRA set "ALVO_EXTRA=%ALVO_EXTRA:"=%"
+if not defined ALVO_EXTRA goto FIM_EXTRA4
+set "ALVO_EXTRA=%ALVO_EXTRA:"=%"
+if not defined ALVO_EXTRA goto FIM_EXTRA4
+echo   Testando %ALVO_EXTRA% com 2 pings...
+ping -n 2 -w 1500 "%ALVO_EXTRA%" >nul 2>&1
+if not errorlevel 1 goto EXTRA4_OK
+echo.
+echo   [X] Sem resposta de %ALVO_EXTRA%.
+echo       Confira se digitou certo. O alvo tambem pode estar
+echo       fora do ar ou nao responder ping.
+choice /c SN /n /m "  Digitar outro alvo? [S] sim  [N] seguir sem extra: "
+if errorlevel 2 goto EXTRA4_CANCELA
+goto PERGUNTA_EXTRA4
+:EXTRA4_CANCELA
+set "ALVO_EXTRA="
+echo   Seguindo sem alvo extra IPv4.
+goto FIM_EXTRA4
+:EXTRA4_OK
+echo   [OK] %ALVO_EXTRA% respondeu.
+:FIM_EXTRA4
 
 echo.
 if not "%TEM_IPV6%"=="1" goto SEM_PERGUNTA_IPV6
@@ -331,8 +352,29 @@ echo  ABA 6 - PING EXTRA IPv6  (opcional)
 echo  Digite o alvo para abrir a aba extra, ou so ENTER para NAO abrir.
 echo  Exemplos: 2606:4700:4700::1111  /  2620:fe::fe  /  cloudflare.com
 echo.
+:PERGUNTA_EXTRA6
+set "ALVO_EXTRA_IPV6="
 set /p "ALVO_EXTRA_IPV6=  Alvo EXTRA IPv6 (ENTER = nenhum): "
-if defined ALVO_EXTRA_IPV6 set "ALVO_EXTRA_IPV6=%ALVO_EXTRA_IPV6:"=%"
+if not defined ALVO_EXTRA_IPV6 goto FIM_EXTRA6
+set "ALVO_EXTRA_IPV6=%ALVO_EXTRA_IPV6:"=%"
+if not defined ALVO_EXTRA_IPV6 goto FIM_EXTRA6
+echo   Testando %ALVO_EXTRA_IPV6% com 2 pings IPv6...
+ping -6 -n 2 -w 1500 "%ALVO_EXTRA_IPV6%" >nul 2>&1
+if not errorlevel 1 goto EXTRA6_OK
+echo.
+echo   [X] Sem resposta de %ALVO_EXTRA_IPV6%.
+echo       Confira se digitou certo. Lembre que o alvo precisa
+echo       ter IPv6 de verdade.
+choice /c SN /n /m "  Digitar outro alvo? [S] sim  [N] seguir sem extra: "
+if errorlevel 2 goto EXTRA6_CANCELA
+goto PERGUNTA_EXTRA6
+:EXTRA6_CANCELA
+set "ALVO_EXTRA_IPV6="
+echo   Seguindo sem alvo extra IPv6.
+goto FIM_EXTRA6
+:EXTRA6_OK
+echo   [OK] %ALVO_EXTRA_IPV6% respondeu.
+:FIM_EXTRA6
 goto FIM_PERGUNTAS
 
 :SEM_PERGUNTA_IPV6
@@ -583,15 +625,132 @@ echo.
 :: =========================================================
 echo.
 echo  ----------------------------------------------------
+:: =========================================================
+:: VERIFICA OS ALVOS PADRAO (2 pings cada)
+::   se responder, nem aparece na tela
+::   se falhar, mostra e deixa o tecnico corrigir na hora
+:: =========================================================
+:CHECA_INTERNET
+ping -n 2 -w 1500 "%ALVO_INTERNET%" >nul 2>&1
+if not errorlevel 1 goto CHECA_SERVIDOR
+color 6F
+echo.
+echo   -----------------------------------------------------
+echo   ALVO DE INTERNET nao respondeu: %ALVO_INTERNET%
+echo   Pode estar fora do ar ou bloqueando ping.
+echo   Exemplos: 8.8.8.8 / 1.1.1.1 / 9.9.9.9
+echo   -----------------------------------------------------
+set "NOVO_ALVO="
+set /p "NOVO_ALVO=  Novo alvo (ENTER = manter assim): "
+color 0A
+if not defined NOVO_ALVO goto CHECA_SERVIDOR
+set "ALVO_INTERNET=%NOVO_ALVO:"=%"
+goto CHECA_INTERNET
+
+:CHECA_SERVIDOR
+ping -n 2 -w 1500 "%SERVIDOR%" >nul 2>&1
+if not errorlevel 1 goto CHECA_ALVO_IPV6
+color 6F
+echo.
+echo   -----------------------------------------------------
+echo   SERVIDOR nao respondeu: %SERVIDOR%
+echo   Esse alvo costuma mudar. Confirme o IP atual do
+echo   servidor da empresa e digite abaixo.
+echo   -----------------------------------------------------
+set "NOVO_ALVO="
+set /p "NOVO_ALVO=  Novo servidor (ENTER = manter assim): "
+color 0A
+if not defined NOVO_ALVO goto CHECA_ALVO_IPV6
+set "SERVIDOR=%NOVO_ALVO:"=%"
+goto CHECA_SERVIDOR
+
+:CHECA_ALVO_IPV6
+if not "%TEM_IPV6%"=="1" goto FIM_CHECA_ALVOS
+ping -6 -n 2 -w 1500 "%ALVO_IPV6%" >nul 2>&1
+if not errorlevel 1 goto FIM_CHECA_ALVOS
+color 6F
+echo.
+echo   -----------------------------------------------------
+echo   ALVO IPv6 nao respondeu: %ALVO_IPV6%
+echo   Exemplos: google.com / 2001:4860:4860::8888
+echo   -----------------------------------------------------
+set "NOVO_ALVO="
+set /p "NOVO_ALVO=  Novo alvo IPv6 (ENTER = manter assim): "
+color 0A
+if not defined NOVO_ALVO goto FIM_CHECA_ALVOS
+set "ALVO_IPV6=%NOVO_ALVO:"=%"
+goto CHECA_ALVO_IPV6
+:FIM_CHECA_ALVOS
+
 echo  TESTES DE VELOCIDADE (opcionais)
+echo.
+echo  Recomendado escolher SOMENTE UM. O SPEEDTEST (Ookla) e o
+echo  mais indicado. Rodar os dois juntos faz um roubar banda do
+echo  outro e atrapalha a analise.
 echo.
 set "USAR_SPEED=N"
 choice /c SN /n /m "  Rodar SPEEDTEST (Ookla)? [S/N]: "
 if errorlevel 2 (set "USAR_SPEED=N") else (set "USAR_SPEED=S")
+if /i "%USAR_SPEED%"=="S" goto INT_SPEED
+goto FIM_INT_SPEED
+
+:INT_SPEED
+echo.
+echo   Intervalo entre as rodadas do SPEEDTEST, em segundos.
+echo   Padrao atual: %INTERVALO_SPEED%s.
+echo   Abaixo de 185s costuma funcionar, mas a Ookla pode
+echo   bloquear por excesso de testes seguidos.
+set "RESP_INT="
+set /p "RESP_INT=  Intervalo em segundos (ENTER = %INTERVALO_SPEED%): "
+if not defined RESP_INT goto FIM_INT_SPEED
+echo %RESP_INT%| findstr /r "^[0-9][0-9]*$" >nul || goto INT_SPEED
+set "INTERVALO_SPEED=%RESP_INT%"
+if %INTERVALO_SPEED% LSS 5 set "INTERVALO_SPEED=5"
+if %INTERVALO_SPEED% LSS 185 echo   [!] Abaixo de 185s: risco de bloqueio pela Ookla.
+echo   Intervalo do SPEEDTEST: %INTERVALO_SPEED%s
+:FIM_INT_SPEED
 
 set "USAR_FAST=N"
 choice /c SN /n /m "  Rodar FAST (Netflix)? [S/N]: "
 if errorlevel 2 (set "USAR_FAST=N") else (set "USAR_FAST=S")
+if /i "%USAR_FAST%"=="S" goto INT_FAST
+goto FIM_INT_FAST
+
+:INT_FAST
+echo.
+echo   Intervalo entre as rodadas do FAST, em segundos.
+echo   Padrao atual: %INTERVALO_FAST%s.
+set "RESP_INTF="
+set /p "RESP_INTF=  Intervalo em segundos (ENTER = %INTERVALO_FAST%): "
+if not defined RESP_INTF goto FIM_INT_FAST
+echo %RESP_INTF%| findstr /r "^[0-9][0-9]*$" >nul || goto INT_FAST
+set "INTERVALO_FAST=%RESP_INTF%"
+if %INTERVALO_FAST% LSS 5 set "INTERVALO_FAST=5"
+echo   Intervalo do FAST: %INTERVALO_FAST%s
+:FIM_INT_FAST
+
+:: marcou os dois? avisa que atrapalha
+if /i not "%USAR_SPEED%"=="S" goto FIM_DOIS
+if /i not "%USAR_FAST%"=="S" goto FIM_DOIS
+color 6F
+echo.
+echo   -----------------------------------------------------
+echo   ATENCAO: SPEEDTEST e FAST marcados JUNTOS.
+echo   Os dois disputam a mesma banda ao mesmo tempo, entao
+echo   as duas medicoes de velocidade saem menores que o real
+echo   e a analise fica menos confiavel.
+echo   -----------------------------------------------------
+choice /c SN /n /m "  Deixar so o SPEEDTEST (recomendado)? [S/N]: "
+if errorlevel 2 goto MANTEM_DOIS
+set "USAR_FAST=N"
+echo   FAST desligado. Seguindo so com o SPEEDTEST.
+goto COR_DOIS
+:MANTEM_DOIS
+echo   Ok, mantendo os dois por sua conta.
+:COR_DOIS
+color 0A
+timeout /t 3 >nul
+:FIM_DOIS
 echo.
 
 :: LOCALIZA OS EXECUTAVEIS (so os que o tecnico quer usar)
@@ -616,6 +775,7 @@ if defined SPEEDEXE set "SATURA=S"
 if defined FASTEXE set "SATURA=S"
 :: aviso vale para QUALQUER conexao: cabo, Wi-Fi 5 GHz ou 2.4 GHz
 if /i "%SATURA%"=="S" (
+  color 6F
   echo.
   echo   -----------------------------------------------------
   echo   AVISO SOBRE O TESTE DE VELOCIDADE
@@ -638,6 +798,8 @@ if /i "%SATURA%"=="S" (
   echo   -----------------------------------------------------
   echo.
   pause
+  color 0A
+  cls
 )
 echo.
 
@@ -1712,7 +1874,6 @@ echo   laudo tecnico ^(VEREDITO.txt^) antes de decidir.
 echo   -----------------------------------------------------
 if exist "%LAUDO%\LAUDO_IA.txt" echo   Analise salva em: %LAUDO%\LAUDO_IA.txt
 echo.
-pause
 
 :: =========================================================
 :: 2) ASSISTENTE - ate 10 perguntas
