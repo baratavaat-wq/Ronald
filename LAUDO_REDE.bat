@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1025"
+set "VER=1026"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -244,8 +244,14 @@ if not defined CLI_PASTA set "CLI_PASTA=cliente"
 :: laudos na pasta central (fora da area de trabalho)
 set "BASE_LAUDOS=%ProgramData%\LaudoRede\Laudos"
 mkdir "%BASE_LAUDOS%" >nul 2>&1
-if not exist "%BASE_LAUDOS%" (set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos" & mkdir "%BASE_LAUDOS%" >nul 2>&1)
-set "LAUDO=%BASE_LAUDOS%\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
+break>"%BASE_LAUDOS%\_t.tmp" 2>nul
+if exist "%BASE_LAUDOS%\_t.tmp" (
+  del "%BASE_LAUDOS%\_t.tmp" >nul 2>&1
+) else (
+  set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos"
+  mkdir "%APPDATA%\LaudoRede\Laudos" >nul 2>&1
+)
+set "LAUDO=!BASE_LAUDOS!\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
 
 :: =========================================================
@@ -1481,7 +1487,17 @@ exit
 :: =========================================================
 :CARREGAR_CONFIG
 if not exist "%CFG_DIR%" mkdir "%CFG_DIR%" >nul 2>&1
-if not exist "%CFG_DIR%" (set "CFG_DIR=%APPDATA%\LaudoRede" & set "CFG=%APPDATA%\LaudoRede\config.ini" & if not exist "%CFG_DIR%" mkdir "%CFG_DIR%" >nul 2>&1)
+break>"%CFG_DIR%\_t.tmp" 2>nul
+if exist "%CFG_DIR%\_t.tmp" (
+  del "%CFG_DIR%\_t.tmp" >nul 2>&1
+) else (
+  set "CFG_DIR=%APPDATA%\LaudoRede"
+  set "CFG=%APPDATA%\LaudoRede\config.ini"
+  if not exist "%APPDATA%\LaudoRede" mkdir "%APPDATA%\LaudoRede" >nul 2>&1
+)
+:: re-afirma o caminho final fora do bloco (delayed -> normal)
+set "CFG=!CFG!"
+set "CFG_DIR=!CFG_DIR!"
 
 if exist "%CFG%" (
   for /f "usebackq tokens=1,* delims==" %%a in ("%CFG%") do (
@@ -1602,8 +1618,17 @@ goto LOOP_IA
 :: =========================================================
 :GRAVAR_BASE
 set "KB_DIR=%ProgramData%\LaudoRede"
-if not exist "%KB_DIR%" set "KB_DIR=%APPDATA%\LaudoRede"
-set "KB=%KB_DIR%\base_conhecimento.txt"
+if not exist "%KB_DIR%" mkdir "%KB_DIR%" >nul 2>&1
+:: testa se DA PARA ESCREVER no ProgramData (nao so se existe)
+break>"%KB_DIR%\_t.tmp" 2>nul
+if exist "%KB_DIR%\_t.tmp" (
+  del "%KB_DIR%\_t.tmp" >nul 2>&1
+) else (
+  :: sem permissao no ProgramData - usa a pasta do usuario
+  set "KB_DIR=%APPDATA%\LaudoRede"
+  if not exist "%APPDATA%\LaudoRede" mkdir "%APPDATA%\LaudoRede" >nul 2>&1
+)
+set "KB=!KB_DIR!\base_conhecimento.txt"
 :: reescreve a base sempre (garante versao nova ao atualizar)
 del "%KB%" >nul 2>&1
 echo BASE DE CONHECIMENTO TECNICA - REDES FTTH/GPON/WI-FI  ^(v2 EXPANDIDA^)>>"%KB%"
