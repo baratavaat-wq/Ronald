@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1030"
+set "VER=1031"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -652,6 +652,9 @@ echo $to = 0 >>"%PBEEP%"
 echo $hi = 0 >>"%PBEEP%"
 echo $ver = "IPv4" >>"%PBEEP%"
 echo if ($flag -eq "6") { $ver = "IPv6" } >>"%PBEEP%"
+echo $pastaLog = Split-Path $log -Parent >>"%PBEEP%"
+echo $sat1 = Join-Path $pastaLog '_sat_speed.flag' >>"%PBEEP%"
+echo $sat2 = Join-Path $pastaLog '_sat_fast.flag' >>"%PBEEP%"
 echo Add-Content -Path $log -Value ("=== PING " + $alvo + " " + $ver + " limite " + $limite + "ms ===") >>"%PBEEP%"
 echo $argos = @() >>"%PBEEP%"
 echo if ($flag -eq "6") { $argos += "-6" } >>"%PBEEP%"
@@ -661,8 +664,11 @@ echo $argos += "-n" >>"%PBEEP%"
 echo $argos += "$qtd" >>"%PBEEP%"
 echo ping @argos ^| ForEach-Object { >>"%PBEEP%"
 echo $linha = $_ >>"%PBEEP%"
+echo $emSat = ((Test-Path $sat1) -or (Test-Path $sat2)) >>"%PBEEP%"
+echo if ($emSat) { $linha = "[SAT] " + $linha } >>"%PBEEP%"
 echo Write-Host $linha >>"%PBEEP%"
 echo Add-Content -Path $log -Value $linha >>"%PBEEP%"
+echo if ($emSat) { return } >>"%PBEEP%"
 echo $txt = [string]$linha >>"%PBEEP%"
 echo if ($txt -match "(?i)(esgotad|timed out|inacess|unreachable|falha ger|general fail)") { $to = $to + 1; [console]::beep(2200,500); [console]::beep(2200,500); Write-Host "   *** TIMEOUT ***" -ForegroundColor Red } >>"%PBEEP%"
 echo elseif ($txt -match "(?i)[=]\s*([0-9]+)\s*ms") { $ms = [int]$Matches[1]; if ($ms -ge $limite) { $hi = $hi + 1; [console]::beep(1600,400); Write-Host ("   *** PING ALTO " + $ms + "ms ***") -ForegroundColor Yellow } } >>"%PBEEP%"
@@ -712,6 +718,7 @@ echo $lat = New-Object System.Collections.ArrayList >>"%PFALA%"
 echo if (Test-Path $arq) { >>"%PFALA%"
 echo foreach ($linha in (Get-Content $arq)) { >>"%PFALA%"
 echo $txt = [string]$linha >>"%PFALA%"
+echo if ($txt.StartsWith("[SAT]")) { continue } >>"%PFALA%"
 echo $perdeu = $false >>"%PFALA%"
 echo if ($txt -match "(?i)(encontrar o host|find host)") { $dns = $dns + 1; $perdeu = $true } >>"%PFALA%"
 echo elseif ($txt -match "(?i)(esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $perdeu = $true } >>"%PFALA%"
@@ -741,7 +748,7 @@ echo $tg += "Tecnico: " + $tec >>"%PFALA%"
 echo $tg += "Cliente: " + $cli >>"%PFALA%"
 echo $tg += "O.S.: " + $os >>"%PFALA%"
 echo $tg += "Aparelhos: " + $apar >>"%PFALA%"
-echo if ($satur -eq 'S') { $tg += "OBS METODO: speedtest/fast rodando durante a coleta. Com o link saturado de proposito, ping alto E perda de pacotes sao esperados (a fila cheia descarta ICMP) e NAO foram usados para reprovar. Resultado NAO CONCLUSIVO para latencia e perda - repetir sem speedtest para julgar o link." } >>"%PFALA%"
+echo if ($satur -eq 'S') { $tg += "OBS METODO: speedtest/fast rodaram em loop. As amostras colhidas DENTRO de cada rodada foram descartadas da analise (marcadas [SAT] no log) - ping alto e perda por saturacao nao entram na conta. O veredito usa so os intervalos livres entre as rodadas." } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4 GHz com teste de velocidade - essa banda satura facil e disputa meio com vizinhos. Ping e perda sobem por isso, nao por defeito. Repetir em 5 GHz ou cabo." } >>"%PFALA%"
 echo $tg += "Conexao: " + $conx >>"%PFALA%"
 echo $tg += "PC: " + $env:COMPUTERNAME + "   Data: " + (Get-Date -Format "dd/MM/yyyy HH:mm") >>"%PFALA%"
@@ -756,7 +763,7 @@ echo $rel += "TECNICO .........: " + $tec >>"%PFALA%"
 echo $rel += "CLIENTE .........: " + $cli >>"%PFALA%"
 echo $rel += "CONEXAO USADA ...: " + $conx >>"%PFALA%"
 echo $rel += "DATA / HORA .....: " + (Get-Date -Format "dd/MM/yyyy HH:mm:ss") >>"%PFALA%"
-echo if ($satur -eq 'S') { $rel += "OBS METODO ......: speedtest/fast em execucao durante a coleta. O link foi saturado de proposito: ping medio, maximo, jitter E perda de pacotes sobem por saturacao (bufferbloat / fila cheia descartando ICMP). Por isso NADA disso foi usado para reprovar. Este teste NAO e conclusivo para latencia nem para perda - para julgar o link, repita sem speedtest." } >>"%PFALA%"
+echo if ($satur -eq 'S') { $rel += "OBS METODO ......: speedtest/fast rodaram em loop durante a coleta. Cada rodada satura o link de proposito (bufferbloat: ping sobe e a fila cheia descarta ICMP). Por isso as amostras colhidas DENTRO de cada rodada foram MARCADAS ([SAT] no log de ping) e DESCARTADAS da analise. Os numeros deste laudo vem apenas dos intervalos livres entre as rodadas. Se sobrarem poucas amostras livres, o veredito fica limitado a ACEITAVEL por prudencia - nesse caso repita sem speedtest." } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $conx -match '2\.4') { $rel += "OBS BANDA .......: Wi-Fi 2.4 GHz somado ao teste de velocidade. A banda de 2.4 GHz satura com facilidade e disputa o meio com vizinhos, micro-ondas e bluetooth: ping e perda sobem bastante durante o speedtest e isso NAO caracteriza defeito. Para avaliar o link, repita em 5 GHz ou no cabo, sem speedtest." } >>"%PFALA%"
 echo $rel += "COMPUTADOR ......: " + $env:COMPUTERNAME >>"%PFALA%"
 echo $rel += "USUARIO .........: " + $env:USERNAME >>"%PFALA%"
@@ -805,7 +812,8 @@ echo $nMed = NotaMed ([int]$pmedA[$i]) >>"%PFALA%"
 echo $nMax = NotaMax ([int]$pmaxA[$i]) >>"%PFALA%"
 echo $nJit = NotaJit ([int]$jitA[$i]) >>"%PFALA%"
 echo $nPer = NotaPer $pct >>"%PFALA%"
-echo if ($satur -eq 'S') { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($nPer -gt 2) { $nPer = 2 }; if ($nRaj -gt 2) { $nRaj = 2 } } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($obs -eq "") { $obs = "sobraram poucas amostras livres de saturacao (" + $env + " pings limpos) - veredito limitado a ACEITAVEL por prudencia; repita sem speedtest para julgar latencia." } } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($nRaj -gt 2) { $nRaj = 2 } } >>"%PFALA%"
 echo $pior = $nRaj >>"%PFALA%"
 echo $quem = "rajada/perda continua" >>"%PFALA%"
 echo if ($nPer -gt $pior) { $pior = $nPer; $quem = "perda de pacotes" } >>"%PFALA%"
@@ -1293,7 +1301,9 @@ if defined SPEEDEXE (
     echo :loop
     echo echo ----------------------------- ^>^> "%LAUDO%\speedlog.txt"
     echo echo SPEEDTEST EM %%date%% %%time%% ^>^> "%LAUDO%\speedlog.txt"
+    echo break^> "%LAUDO%\_sat_speed.flag"
     echo "%SPEEDEXE%" %SPEEDARGS% ^>^> "%LAUDO%\speedlog.txt" 2^>^&1
+    echo del "%LAUDO%\_sat_speed.flag" ^>nul 2^>^&1
     echo echo. ^>^> "%LAUDO%\speedlog.txt"
     echo timeout /t %INTERVALO_SPEED% ^>nul
     echo goto loop
@@ -1311,7 +1321,9 @@ if defined FASTEXE (
     echo :loop
     echo echo ----------------------------- ^>^> "%LAUDO%\fastlog.txt"
     echo echo FAST EM %%date%% %%time%% ^>^> "%LAUDO%\fastlog.txt"
+    echo break^> "%LAUDO%\_sat_fast.flag"
     echo "%FASTEXE%" %FASTARGS% ^>^> "%LAUDO%\fastlog.txt" 2^>^&1
+    echo del "%LAUDO%\_sat_fast.flag" ^>nul 2^>^&1
     echo echo. ^>^> "%LAUDO%\fastlog.txt"
     echo timeout /t %INTERVALO_FAST% ^>nul
     echo goto loop
@@ -1409,6 +1421,7 @@ echo.
 
 :: limpeza dos temporarios gerados por este laudo
 del "%PBEEP%" "%PFALA%" "%PWAIT%" "%PTG%" "%PNET%" "%PCHK%" "%PSAN%" "%PVER%" >nul 2>&1
+del "%LAUDO%\_sat_speed.flag" "%LAUDO%\_sat_fast.flag" >nul 2>&1
 del "%TEMP%\speed_loop.bat" "%TEMP%\fast_loop.bat" "%TEMP%\lr_ver.ps1" "%TEMP%\lr_notas.txt" >nul 2>&1
 echo.
 
