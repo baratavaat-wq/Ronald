@@ -5,7 +5,47 @@
 -  ATENÇAO A IA SABER TUDO DE REDE PORTAS NAT ETC ELA NAO ACESSAR INTERNET
 ELA USAR A BASE DE DADOS JA PRONTA PARA AJUDA VOCES
 
+NOVIDADES DESTA VERSAO
 
+CADASTRO DO ATENDIMENTO
+- Agora o script pede o ID da O.S. (se nao tiver, digite SEM).
+- Pede tambem os aparelhos que estao no local (1 obrigatorio,
+  o segundo e opcional - ENTER pula).
+- O.S. e aparelhos aparecem no laudo e na mensagem do grupo.
+
+ASSISTENTE DE IA
+- No final abre o assistente para ate 10 perguntas sobre o
+  teste ou sobre redes em geral.
+- Lembrete: a IA pode errar. Confira sempre os numeros do
+  VEREDITO.txt antes de decidir.
+
+TESTE DE VELOCIDADE - FIM DO LAUDO INJUSTO
+- O speedtest e o fast rodam em loop e enchem o link de
+  proposito. Enquanto eles rodam o ping sobe e a navegacao
+  pode travar - isso e normal, nao e defeito.
+- Agora os pings colhidos DENTRO de cada rodada sao
+  descartados da analise (ficam marcados [SAT] no log).
+- O veredito usa so os momentos livres entre as rodadas.
+- Se sobrarem poucas amostras livres, o laudo fica limitado
+  a ACEITAVEL por prudencia e pede um teste sem speedtest.
+
+AVISOS NA TELA
+- Ao detectar Wi-Fi 2.4 GHz: aviso de que nessa banda o ping
+  e mais alto e instavel por natureza.
+- Ao aceitar rodar o speedtest: aviso de que a navegacao pode
+  ficar lenta ou travar durante o teste.
+- Os dois avisos agora esperam voce apertar uma tecla.
+
+MENOS REPROVACAO INJUSTA
+- Sem perda de pacotes e com ping medio dentro do usavel, a
+  latencia alta vira observacao e NAO reprova o aparelho.
+- Perda de pacotes e rajada continuam reprovando normalmente.
+
+CORRECOES
+- Corrigido o tempo restante que as vezes aparecia 14:-00.
+- Se a chave da IA nao estiver configurada, o script agora
+  avisa na tela e mostra o caminho do arquivo de configuracao
+  (antes ele so nao abria a IA e ninguem sabia o motivo).
 - Mudou ip da borda agora e 10.1.1.77 herrique confirmou 
 - Corrigindo problema do sinal mostra A força do sinal em % nao dbm
 - Novo assistente de IA no final do teste (ate 10 perguntas).
