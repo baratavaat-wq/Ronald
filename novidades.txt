@@ -1,4 +1,6 @@
- ------Alerta API DA IA VOU ENVIAR NO TELEFONE PARA VOCÊ TECNICO---------
+ ------Alerta API DA IA, VOU ENVIAR NO TELEFONE PARA VOCÊ TECNICO---------
+
+-  ATENÇAO A IA SABER TUDO DE REDE PORTAS NAT ETC ELA NAO ACESSAR INTERNET ELA USAR A BASE DE DADOS JA PRONTA PARA AJUDA VOCES
 
 - Corrigindo problema do sinal mostra A força do sinal em % nao dbm
 - Novo assistente de IA no final do teste (ate 10 perguntas).
@@ -6,7 +8,6 @@
 - Sinal Wi-Fi agora mostra a qualidade em porcentagem.
 - Laudos salvos em pasta propria (fora da area de trabalho).
 - Correcoes de estabilidade.
-- Corrigindo problema do sinal mostra A força do sinal em % nao dbm
 - problema do envio do telegran
 - problema da janela fecha sozinho
 - Verificaçao de chaves
