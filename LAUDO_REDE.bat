@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1031"
+set "VER=1032"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -611,8 +611,9 @@ if /i "%USAR_SPEED%"=="N" echo   SPEEDTEST: nao sera executado (escolha do tecni
 if /i "%USAR_FAST%"=="N" echo   FAST: nao sera executado (escolha do tecnico).
 :: marca que havera saturacao proposital do link durante a coleta
 set "SATURA=N"
-if /i "%USAR_SPEED%"=="S" set "SATURA=S"
-if /i "%USAR_FAST%"=="S" set "SATURA=S"
+:: so conta como saturacao se o programa foi realmente encontrado
+if defined SPEEDEXE set "SATURA=S"
+if defined FASTEXE set "SATURA=S"
 :: aviso vale para QUALQUER conexao: cabo, Wi-Fi 5 GHz ou 2.4 GHz
 if /i "%SATURA%"=="S" (
   echo.
