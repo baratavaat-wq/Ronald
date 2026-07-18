@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1028"
+set "VER=1029"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -346,8 +346,8 @@ echo   if ($ctx.Length -gt $LIMITE_CHARS) { $ctx = $ctx.Substring(0,$LIMITE_CHAR
 echo.>>"%PIA%"
 echo   $sys = 'Voce e um assistente tecnico de redes FTTH/GPON. Responda em portugues do Brasil, curto e pratico. Use a BASE DE CONHECIMENTO e os dados do teste quando fizer sentido. Se perguntarem algo em tempo real (noticias, se um site caiu agora), diga que nao tem dados em tempo real.' >>"%PIA%"
 echo   $kb = '' >>"%PIA%"
-echo   $kbPath = Join-Path $env:ProgramData 'LaudoRede\base_conhecimento.txt' >>"%PIA%"
-echo   if (Test-Path $kbPath) { $kb = Get-Content -Path $kbPath -Raw -Encoding UTF8 } >>"%PIA%"
+echo   $kbPaths = @((Join-Path $env:ProgramData 'LaudoRede\base_conhecimento.txt'),(Join-Path $env:APPDATA 'LaudoRede\base_conhecimento.txt'),(Join-Path $env:TEMP 'LaudoRede\base_conhecimento.txt')) >>"%PIA%"
+echo   foreach ($kp in $kbPaths) { if (Test-Path $kp) { $kb = Get-Content -Path $kp -Raw -Encoding UTF8; break } } >>"%PIA%"
 echo   if ($kb) { $sys = $sys + "`n`nBASE DE CONHECIMENTO:`n" + $kb } >>"%PIA%"
 echo   $userMsg = "Dados do teste: $ctx`n`nPergunta: $perg" >>"%PIA%"
 echo.>>"%PIA%"
@@ -1616,18 +1616,36 @@ goto LOOP_IA
 :: GRAVA a base de conhecimento (para a IA consultar)
 ::   fica em ProgramData\LaudoRede\base_conhecimento.txt
 :: =========================================================
-:GRAVAR_BASE
-set "KB_DIR=%ProgramData%\LaudoRede"
+:: tenta preparar o arquivo da base na pasta %KB_DIR% (testa o ARQUIVO, nao so a pasta)
+:KB_TENTAR
+set "KB_OK="
 if not exist "%KB_DIR%" mkdir "%KB_DIR%" >nul 2>&1
-break>"%KB_DIR%\_t.tmp" 2>nul
-if exist "%KB_DIR%\_t.tmp" (
-  del "%KB_DIR%\_t.tmp" >nul 2>&1
-) else (
-  set "KB_DIR=%APPDATA%\LaudoRede"
-  if not exist "%APPDATA%\LaudoRede" mkdir "%APPDATA%\LaudoRede" >nul 2>&1
-)
-set "KB=!KB_DIR!\base_conhecimento.txt"
+if not exist "%KB_DIR%" goto :eof
+set "KB=%KB_DIR%\base_conhecimento.txt"
+attrib -r -h -s "%KB%" >nul 2>&1
 del "%KB%" >nul 2>&1
+if exist "%KB%" goto :eof
+break>"%KB%" 2>nul
+if exist "%KB%" set "KB_OK=1"
+goto :eof
+
+:GRAVAR_BASE
+set "KB_OK="
+set "KB_DIR=%ProgramData%\LaudoRede"
+call :KB_TENTAR
+if defined KB_OK goto KB_PRONTO
+set "KB_DIR=%APPDATA%\LaudoRede"
+call :KB_TENTAR
+if defined KB_OK goto KB_PRONTO
+set "KB_DIR=%TEMP%\LaudoRede"
+call :KB_TENTAR
+if defined KB_OK goto KB_PRONTO
+echo.
+echo   [AVISO] Nao consegui gravar a base de conhecimento.
+echo           A IA vai responder so com os dados do teste.
+goto :eof
+
+:KB_PRONTO
 echo BASE DE CONHECIMENTO TECNICA - REDES FTTH/GPON/WI-FI  ^(v2 EXPANDIDA^)>>"%KB%"
 echo Manual de referencia para o assistente de IA do LAUDO DE REDE.>>"%KB%"
 echo Responda o tecnico usando estas informacoes com precisao e objetividade.>>"%KB%"
