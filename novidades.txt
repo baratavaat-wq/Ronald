@@ -1,7 +1,12 @@
  ------Alerta API DA IA, VOU ENVIAR NO TELEFONE PARA VOCÊ TECNICO---------
 
--  ATENÇAO A IA SABER TUDO DE REDE PORTAS NAT ETC ELA NAO ACESSAR INTERNET ELA USAR A BASE DE DADOS JA PRONTA PARA AJUDA VOCES
 
+
+-  ATENÇAO A IA SABER TUDO DE REDE PORTAS NAT ETC ELA NAO ACESSAR INTERNET
+ELA USAR A BASE DE DADOS JA PRONTA PARA AJUDA VOCES
+
+
+- Mudou ip da borda agora e 10.1.1.77 herrique confirmou 
 - Corrigindo problema do sinal mostra A força do sinal em % nao dbm
 - Novo assistente de IA no final do teste (ate 10 perguntas).
 - A IA analisa o resultado e tira duvidas de rede/GPON.
