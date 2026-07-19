@@ -1,63 +1,102 @@
 NOVIDADES DESTA VERSAO
 
-CADASTRO DO ATENDIMENTO
-- Agora o script pede o ID da O.S. (se nao tiver, digite SEM).
-- Pede tambem os aparelhos que estao no local (1 obrigatorio,
-  o segundo e opcional - ENTER pula).
-- O.S. e aparelhos aparecem no laudo e na mensagem do grupo.
+=========================================================
+O QUE MUDA NO SEU DIA A DIA
+=========================================================
+- O laudo ficou mais justo: perda alta agora reprova de
+  verdade, e o roteador nao e mais condenado a toa.
+- As janelas de ping nao ficam mais abertas depois do teste.
+- Use a tecla F para encerrar antes da hora. Ctrl+C aborta
+  tudo e NAO gera laudo.
 
-ANALISE DA IA
-- No final, a IA le o resultado e escreve um laudo proprio:
-  situacao da conexao, se o problema e do cliente ou da
-  operadora, e o que fazer agora.
-- A analise fica salva na pasta do laudo (LAUDO_IA.txt).
-- Depois disso abre o assistente para ate 10 perguntas.
-- Lembrete: a IA pode errar. Confira sempre os numeros do
-  VEREDITO.txt antes de decidir.
+=========================================================
+CLASSIFICACAO DA PERDA DE PACOTES
+=========================================================
+- Antes, qualquer perda acima de 5 por cento dava a mesma
+  nota. Um alvo com 66 por cento de perda saia como
+  ACEITAVEL. Isso foi corrigido.
+- Escala nova, proporcional:
+     0 por cento .............. EXCELENTE
+     ate 1 por cento .......... BOM
+     ate 2,5 por cento ........ ACEITAVEL
+     ate 5 por cento .......... RUIM
+     ate 10 por cento ......... REPROVADO
+     ate 25 por cento ......... PROBLEMA DETECTADO
+     acima de 25 por cento .... PROBLEMA GRAVE
+- Toda perda registrada entra na classificacao, isolada ou
+  em rajada. A rajada agora so agrava a nota, nunca alivia.
 
-TESTE DE VELOCIDADE - FIM DO LAUDO INJUSTO
-- O speedtest e o fast rodam em loop e enchem o link de
-  proposito. Enquanto eles rodam o ping sobe e a navegacao
-  pode travar - isso e normal, nao e defeito.
-- Agora os pings colhidos DENTRO de cada rodada sao
-  descartados da analise (ficam marcados [SAT] no log).
-- O veredito usa so os momentos livres entre as rodadas.
-- Se sobrarem poucas amostras livres, o laudo fica limitado
-  a ACEITAVEL por prudencia e pede um teste sem speedtest.
+=========================================================
+ROTEADOR NAO E MAIS CONDENADO SEM MOTIVO
+=========================================================
+- Muito roteador responde a poucos pings de proposito
+  (limite de ICMP), mesmo passando todo o trafego normal.
+- O laudo agora compara: se o gateway perde muito mais que
+  os destinos externos - cujo trafego PASSA por ele - a
+  perda nao pode ser de trafego.
+- Nesse caso o numero continua aparecendo no laudo, mas com
+  a explicacao de que e limite de ICMP do roteador, e o
+  equipamento nao e reprovado por isso.
+- Quando a perda e real, ela aparece nos externos tambem, e
+  ai reprova normalmente.
 
-ALVOS DE PING
-- Os alvos padrao (internet, servidor e IPv6) sao testados com
-  2 pings antes de comecar. Se responderem, nada aparece.
-- Se algum falhar, o script mostra e deixa voce corrigir na
-  hora (o servidor da empresa costuma mudar de IP).
-- O alvo EXTRA que voce digita tambem e testado na hora. Se
-  errar de digitacao, ele avisa e pede de novo.
+=========================================================
+TESTE DE VELOCIDADE (SPEEDTEST / FAST)
+=========================================================
+- Durante o speedtest o link fica saturado de proposito.
+  Continua valendo: ping, jitter e picos daquele periodo
+  sao DESCARTADOS da analise.
+- Novidade: a PERDA de pacotes ocorrida durante o speedtest
+  passou a ser contabilizada. Antes ela era ignorada junto
+  com o resto.
+- Resumindo: no speedtest o script olha so se o pacote
+  voltou ou nao. O tempo daquele pacote e jogado fora.
+- Se voce NAO rodar teste de velocidade, aparece um alerta
+  avisando que bufferbloat e comportamento sob carga nao
+  poderao ser avaliados.
 
-TESTES DE VELOCIDADE - AGORA VOCE ESCOLHE O INTERVALO
-- Ao marcar SPEEDTEST ou FAST, o script pergunta o intervalo
-  em segundos entre as rodadas (ENTER mantem o padrao).
-- No SPEEDTEST: abaixo de 185s costuma funcionar, mas a Ookla
-  pode bloquear por excesso de testes seguidos - ele avisa.
-- Recomendado marcar SOMENTE UM dos dois. Se marcar os dois,
-  o script avisa que eles disputam banda e oferece desligar o
-  FAST.
+=========================================================
+VELOCIDADE DA PORTA DE REDE - CORRIGIDO
+=========================================================
+- Em PC com mais de uma placa de rede, o script mostrava a
+  velocidade da placa errada (ex: dizia 100 Mbps com o
+  Windows mostrando 1 Gbps).
+- Agora ele le a velocidade da placa que realmente esta
+  levando o trafego do teste.
 
+=========================================================
+FECHAMENTO DAS JANELAS - CORRIGIDO
+=========================================================
+- As abas de ping ficavam abertas pingando sozinhas quando
+  o script era encerrado no Ctrl+C. Resolvido.
+- O script principal mantem um sinal de vida enquanto roda.
+  Se ele parar por qualquer motivo, cada aba de ping percebe
+  e fecha sozinha.
+- Tambem foi corrigido um caso em que, no fim do teste, a
+  janela principal fechava junto com as abas.
+
+=========================================================
+ENCERRAR O TESTE ANTES DA HORA
+=========================================================
+- Aperte F: encerra na hora, gera o laudo e envia ao
+  Telegram normalmente.
+- Ctrl+C: aborta tudo. Nao gera laudo e nao envia nada.
+  A tela agora avisa isso.
+
+=========================================================
 AVISOS NA TELA
-- Ao detectar Wi-Fi 2.4 GHz: aviso de que nessa banda o ping
-  e mais alto e instavel por natureza.
-- Ao aceitar rodar o speedtest: aviso de que a navegacao pode
-  ficar lenta ou travar durante o teste.
-- Os dois avisos agora esperam voce apertar uma tecla e o
-  aviso do speedtest aparece em amarelo, voltando ao normal
-  assim que o teste comeca.
+=========================================================
+- Os avisos nao mudam mais a cor de fundo do console. O
+  fundo continua preto e so o texto fica amarelo, voltando
+  ao normal logo em seguida.
 
-MENOS REPROVACAO INJUSTA
-- Sem perda de pacotes e com ping medio dentro do usavel, a
-  latencia alta vira observacao e NAO reprova o aparelho.
-- Perda de pacotes e rajada continuam reprovando normalmente.
-
-CORRECOES
-- Corrigido o tempo restante que as vezes aparecia 14:-00.
-- Se a chave da IA nao estiver configurada, o script agora
-  avisa na tela e mostra o caminho do arquivo de configuracao
-  (antes ele so nao abria a IA e ninguem sabia o motivo).
+=========================================================
+OUTROS AJUSTES
+=========================================================
+- O alvo do SERVIDOR nao e mais perguntado durante o teste.
+  O IP e definido no topo do script.
+- Os textos do laudo ficaram factuais. Sairam frases como
+  "perda isolada nao reprova" e "indicio fraco sem
+  consenso", que vinham da logica antiga.
+- A legenda do relatorio foi atualizada para a escala nova
+  de perda.
