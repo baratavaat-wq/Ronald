@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1038"
+set "VER=1039"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -761,12 +761,20 @@ set "SATURA=N"
 :: so conta como saturacao se o programa foi realmente encontrado
 if defined SPEEDEXE set "SATURA=S"
 if defined FASTEXE set "SATURA=S"
+set "MOTIVO_SEM_SPEED=escolha do tecnico"
+if /i "%USAR_SPEED%"=="S" if not defined SPEEDEXE set "MOTIVO_SEM_SPEED=programa nao encontrado no disco"
+if /i "%USAR_FAST%"=="S" if not defined FASTEXE set "MOTIVO_SEM_SPEED=programa nao encontrado no disco"
 if /i "%SATURA%"=="N" (
   color 0E
   echo.
   echo   -----------------------------------------------------
   echo   ALERTA
-  echo   Voce nao realizou teste de velocidade ^(Speedtest/Fast^).
+  echo   O teste de velocidade NAO vai rodar.
+  echo   Motivo: !MOTIVO_SEM_SPEED!
+  echo.
+  echo   Se o programa nao foi encontrado, coloque o
+  echo   speedtest.exe na mesma pasta deste script e rode
+  echo   de novo.
   echo.
   echo   A analise continua normalmente, porem metricas que
   echo   dependem do teste de velocidade, como bufferbloat e
@@ -824,6 +832,7 @@ echo $pastaLog = Split-Path $log -Parent >>"%PBEEP%"
 echo $sat1 = Join-Path $pastaLog '_sat_speed.flag' >>"%PBEEP%"
 echo $sat2 = Join-Path $pastaLog '_sat_fast.flag' >>"%PBEEP%"
 echo $hb = Join-Path $env:TEMP 'lr_hb.flag' >>"%PBEEP%"
+echo $viuHb = $false >>"%PBEEP%"
 echo Add-Content -Path $log -Value ("=== PING " + $alvo + " " + $ver + " limite " + $limite + "ms ===") >>"%PBEEP%"
 echo $argos = @() >>"%PBEEP%"
 echo if ($flag -eq "6") { $argos += "-6" } >>"%PBEEP%"
@@ -833,8 +842,9 @@ echo $argos += "-n" >>"%PBEEP%"
 echo $argos += "$qtd" >>"%PBEEP%"
 echo ping @argos ^| ForEach-Object { >>"%PBEEP%"
 echo $linha = $_ >>"%PBEEP%"
-echo if (-not (Test-Path $hb)) { exit } >>"%PBEEP%"
-echo if ((((Get-Date) - (Get-Item $hb).LastWriteTime).TotalSeconds) -gt 20) { exit } >>"%PBEEP%"
+echo if (-not $viuHb) { if (Test-Path $hb) { $viuHb = $true } } >>"%PBEEP%"
+echo elseif (-not (Test-Path $hb)) { exit } >>"%PBEEP%"
+echo elseif ((((Get-Date) - (Get-Item $hb).LastWriteTime).TotalSeconds) -gt 90) { exit } >>"%PBEEP%"
 echo $emSat = ((Test-Path $sat1) -or (Test-Path $sat2)) >>"%PBEEP%"
 echo if ($emSat) { $linha = "[SAT] " + $linha } >>"%PBEEP%"
 echo Write-Host $linha >>"%PBEEP%"
