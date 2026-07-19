@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1039"
+set "VER=1040"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -504,7 +504,7 @@ echo $sinal = $sinal.TrimEnd([char]37) >>"%PNET%"
 echo if (-not $banda -and $canal -match '^\d+$') { >>"%PNET%"
 echo $c = [int]$canal >>"%PNET%"
 echo if ($c -ge 1 -and $c -le 14) { $banda = '2.4 GHz' } elseif ($c -ge 32) { $banda = '5 GHz' } >>"%PNET%"
-echo if ($banda -and $radio -match '(?i)802\.11(ax|be)') { $banda = $banda + ' (ou 6 GHz - nao confirmado pelo Windows)' } >>"%PNET%"
+echo if ($banda -and $radio -match '(?i)802\.11(ax^|be)') { $banda = $banda + ' (ou 6 GHz - nao confirmado pelo Windows)' } >>"%PNET%"
 echo } >>"%PNET%"
 echo $ger = 'Wi-Fi ?' >>"%PNET%"
 echo if ($radio -match '(?i)802\.11be') { $ger = 'Wi-Fi 7' } >>"%PNET%"
