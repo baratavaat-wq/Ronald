@@ -5,6 +5,8 @@ O QUE MUDA NO SEU DIA A DIA
 =========================================================
 - O laudo ficou mais justo: perda alta agora reprova de
   verdade, e o roteador nao e mais condenado a toa.
+- O jitter passou a ser calculado do jeito certo. Wi-Fi
+  instavel que antes passava agora e pego.
 - As janelas de ping nao ficam mais abertas depois do teste.
 - Use a tecla F para encerrar antes da hora. Ctrl+C aborta
   tudo e NAO gera laudo.
@@ -27,6 +29,26 @@ CLASSIFICACAO DA PERDA DE PACOTES
   em rajada. A rajada agora so agrava a nota, nunca alivia.
 
 =========================================================
+JITTER - CALCULO CORRIGIDO
+=========================================================
+- O script calculava jitter como (maior ping - menor ping).
+  Isso e AMPLITUDE, nao jitter. Um unico pico estragava o
+  numero, e oscilacao constante passava despercebida.
+- Agora o jitter e a media da diferenca entre pacotes
+  seguidos, que e a definicao da norma (RFC 3550).
+- Escala nova, alinhada a ITU-T Y.1541:
+     ate 5 ms ....... EXCELENTE
+     ate 10 ms ...... BOM
+     ate 20 ms ...... ACEITAVEL
+     ate 50 ms ...... RUIM
+     acima de 50 ms . REPROVADO
+- Exemplo real: um Wi-Fi oscilando entre 18 e 80 ms saia
+  como ACEITAVEL pela conta antiga. Agora sai como RUIM,
+  que e o certo.
+- A amplitude (maior menos menor) continua no laudo, mas
+  com o nome correto, so como informacao extra.
+
+=========================================================
 ROTEADOR NAO E MAIS CONDENADO SEM MOTIVO
 =========================================================
 - Muito roteador responde a poucos pings de proposito
@@ -39,6 +61,20 @@ ROTEADOR NAO E MAIS CONDENADO SEM MOTIVO
   equipamento nao e reprovado por isso.
 - Quando a perda e real, ela aparece nos externos tambem, e
   ai reprova normalmente.
+
+=========================================================
+O LAUDO AGORA EXPLICA O METODO
+=========================================================
+- Foi incluida uma nota deixando claro que todas as medidas
+  vem de ping (ICMP) e sao INDICATIVAS.
+- Muitos roteadores tratam ICMP com prioridade menor, entao
+  esses numeros nao equivalem ao trafego real dos programas.
+- O ping do Windows tem resolucao de 1 ms: em fibra rapida
+  a latencia real pode ser menor que a mostrada.
+- Para medicao com valor contratual, o caminho e TWAMP ou
+  iperf3, nao o ping.
+- Serve para o cliente ou a operadora nao usarem o laudo
+  como se fosse medicao oficial.
 
 =========================================================
 TESTE DE VELOCIDADE (SPEEDTEST / FAST)
@@ -63,6 +99,15 @@ VELOCIDADE DA PORTA DE REDE - CORRIGIDO
   Windows mostrando 1 Gbps).
 - Agora ele le a velocidade da placa que realmente esta
   levando o trafego do teste.
+
+=========================================================
+WI-FI 6 GHz
+=========================================================
+- Quando o Windows nao informa a banda e o roteador e
+  Wi-Fi 6E ou 7, o script nao afirma mais "5 GHz" no chute.
+- Passa a escrever "5 GHz (ou 6 GHz - nao confirmado)",
+  porque no 6 GHz a numeracao de canal recomeca do 1 e se
+  confunde com a do 5 GHz.
 
 =========================================================
 FECHAMENTO DAS JANELAS - CORRIGIDO
@@ -98,5 +143,5 @@ OUTROS AJUSTES
 - Os textos do laudo ficaram factuais. Sairam frases como
   "perda isolada nao reprova" e "indicio fraco sem
   consenso", que vinham da logica antiga.
-- A legenda do relatorio foi atualizada para a escala nova
-  de perda.
+- A legenda do relatorio foi atualizada para as escalas
+  novas de perda e de jitter.
