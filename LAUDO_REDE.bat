@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1034"
+set "VER=1035"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -515,7 +515,7 @@ echo $rota = 'desconhecida' >>"%PNET%"
 echo try { >>"%PNET%"
 echo $fi = Find-NetRoute -RemoteIPAddress '8.8.8.8' -ErrorAction Stop ^| Select-Object -First 1 >>"%PNET%"
 echo $ad = Get-NetAdapter -InterfaceIndex $fi.InterfaceIndex -ErrorAction Stop >>"%PNET%"
-echo if ($ad.MediaType -eq '802.3') { $rota = 'LAN' } else { $rota = 'Wi-Fi' } >>"%PNET%"
+echo if ($ad.MediaType -eq '802.3') { $rota = 'LAN'; $lanNome = $ad.InterfaceDescription; $lanVel = $ad.LinkSpeed } else { $rota = 'Wi-Fi' } >>"%PNET%"
 echo } catch {} >>"%PNET%"
 echo if ($temLan -and $temWifi) { $res = 'ATENCAO - LAN e Wi-Fi ligados AO MESMO TEMPO - o teste esta indo pela ' + $rota } >>"%PNET%"
 echo elseif ($temWifi) { $res = 'Wi-Fi / ' + $banda + ' / ' + $ger + ' / SSID ' + $ssid + ' / canal ' + $canal + ' / sinal ' + $sinal + ([char]37) } >>"%PNET%"
@@ -543,6 +543,7 @@ echo $det += '--- LAN por cabo ---' >>"%PNET%"
 echo if ($temLan) { >>"%PNET%"
 echo $det += 'Placa ..........: ' + $lanNome >>"%PNET%"
 echo $det += 'Velocidade .....: ' + $lanVel >>"%PNET%"
+echo try { Set-Content -Path (Join-Path $pasta '_link.txt') -Value @(('LINKSPEED=' + $lanVel),('NOME_ADAPTADOR=' + $lanNome)) -Encoding UTF8 } catch {} >>"%PNET%"
 echo } else { $det += 'LAN ............: nao conectada' } >>"%PNET%"
 echo if ($temLan -and $temWifi) { >>"%PNET%"
 echo $det += '' >>"%PNET%"
@@ -632,8 +633,8 @@ echo  ----------------------------------------------------
 :: =========================================================
 :CHECA_INTERNET
 ping -n 2 -w 1500 "%ALVO_INTERNET%" >nul 2>&1
-if not errorlevel 1 goto CHECA_SERVIDOR
-color 6F
+if not errorlevel 1 goto CHECA_ALVO_IPV6
+color 0E
 echo.
 echo   -----------------------------------------------------
 echo   ALVO DE INTERNET nao respondeu: %ALVO_INTERNET%
@@ -643,32 +644,18 @@ echo   -----------------------------------------------------
 set "NOVO_ALVO="
 set /p "NOVO_ALVO=  Novo alvo (ENTER = manter assim): "
 color 0A
-if not defined NOVO_ALVO goto CHECA_SERVIDOR
+if not defined NOVO_ALVO goto CHECA_ALVO_IPV6
 set "ALVO_INTERNET=%NOVO_ALVO:"=%"
 goto CHECA_INTERNET
 
 :CHECA_SERVIDOR
-ping -n 2 -w 1500 "%SERVIDOR%" >nul 2>&1
-if not errorlevel 1 goto CHECA_ALVO_IPV6
-color 6F
-echo.
-echo   -----------------------------------------------------
-echo   SERVIDOR nao respondeu: %SERVIDOR%
-echo   Esse alvo costuma mudar. Confirme o IP atual do
-echo   servidor da empresa e digite abaixo.
-echo   -----------------------------------------------------
-set "NOVO_ALVO="
-set /p "NOVO_ALVO=  Novo servidor (ENTER = manter assim): "
-color 0A
-if not defined NOVO_ALVO goto CHECA_ALVO_IPV6
-set "SERVIDOR=%NOVO_ALVO:"=%"
-goto CHECA_SERVIDOR
+:: verificacao do SERVIDOR removida a pedido - editar o IP no topo do script
 
 :CHECA_ALVO_IPV6
 if not "%TEM_IPV6%"=="1" goto FIM_CHECA_ALVOS
 ping -6 -n 2 -w 1500 "%ALVO_IPV6%" >nul 2>&1
 if not errorlevel 1 goto FIM_CHECA_ALVOS
-color 6F
+color 0E
 echo.
 echo   -----------------------------------------------------
 echo   ALVO IPv6 nao respondeu: %ALVO_IPV6%
@@ -732,7 +719,7 @@ echo   Intervalo do FAST: %INTERVALO_FAST%s
 :: marcou os dois? avisa que atrapalha
 if /i not "%USAR_SPEED%"=="S" goto FIM_DOIS
 if /i not "%USAR_FAST%"=="S" goto FIM_DOIS
-color 6F
+color 0E
 echo.
 echo   -----------------------------------------------------
 echo   ATENCAO: SPEEDTEST e FAST marcados JUNTOS.
@@ -773,9 +760,26 @@ set "SATURA=N"
 :: so conta como saturacao se o programa foi realmente encontrado
 if defined SPEEDEXE set "SATURA=S"
 if defined FASTEXE set "SATURA=S"
+if /i "%SATURA%"=="N" (
+  color 0E
+  echo.
+  echo   -----------------------------------------------------
+  echo   ALERTA
+  echo   Voce nao realizou teste de velocidade ^(Speedtest/Fast^).
+  echo.
+  echo   A analise continua normalmente, porem metricas que
+  echo   dependem do teste de velocidade, como bufferbloat e
+  echo   comportamento do link sob carga, nao poderao ser
+  echo   avaliadas.
+  echo   -----------------------------------------------------
+  echo.
+  pause
+  color 0A
+)
+
 :: aviso vale para QUALQUER conexao: cabo, Wi-Fi 5 GHz ou 2.4 GHz
 if /i "%SATURA%"=="S" (
-  color 6F
+  color 0E
   echo.
   echo   -----------------------------------------------------
   echo   AVISO SOBRE O TESTE DE VELOCIDADE
@@ -861,7 +865,7 @@ echo $ESC = @("EXCELENTE","BOM","ACEITAVEL","RUIM","REPROVADO","PROBLEMA DETECTA
 echo function NotaMed($v) { if ($v -lt 0) { return -1 }; if ($v -le 50) { return 0 }; if ($v -le 100) { return 1 }; if ($v -le 150) { return 2 }; if ($v -le 200) { return 3 }; return 4 } >>"%PFALA%"
 echo function NotaMax($v) { if ($v -lt 0) { return -1 }; if ($v -le 150) { return 0 }; if ($v -le 300) { return 1 }; if ($v -le 600) { return 2 }; if ($v -le 1000) { return 3 }; return 4 } >>"%PFALA%"
 echo function NotaJit($v) { if ($v -lt 0) { return -1 }; if ($v -le 20) { return 0 }; if ($v -le 50) { return 1 }; if ($v -le 100) { return 2 }; if ($v -le 200) { return 3 }; return 4 } >>"%PFALA%"
-echo function NotaPer($p) { if ($p -le 2) { return 0 }; if ($p -le 5) { return 1 }; return 2 } >>"%PFALA%"
+echo function NotaPer($p) { if ($p -le 0) { return 0 }; if ($p -le 1) { return 1 }; if ($p -le 2.5) { return 2 }; if ($p -le 5) { return 3 }; if ($p -le 10) { return 4 }; if ($p -le 25) { return 5 }; return 6 } >>"%PFALA%"
 echo $alvos = @("ping_modem.txt","ping_internet.txt","ping_servidor.txt","ping_ipv6.txt","ping_extra.txt","ping_extra6.txt") >>"%PFALA%"
 echo $nomes = @("roteador","internet","servidor","IPv6","extra IPv4","extra IPv6") >>"%PFALA%"
 echo $ends  = @($aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6) >>"%PFALA%"
@@ -950,31 +954,42 @@ echo $puxou = "" >>"%PFALA%"
 echo if ($evA[$i] -ge 0) { >>"%PFALA%"
 echo $ev = $evA[$i] >>"%PFALA%"
 echo if ($ev -eq 3) { >>"%PFALA%"
-echo if ($rajMax -ge 3) { $nRaj = 6 } else { $nRaj = 5 } >>"%PFALA%"
+echo $nBase = NotaPer $pct >>"%PFALA%"
+echo if ($rajMax -ge 3) { $nRaj = [Math]::Max($nBase,6) } else { $nRaj = [Math]::Max($nBase,5) } >>"%PFALA%"
 echo $partes = @() >>"%PFALA%"
 echo if ($rajMax -ge 2) { $partes += "maior rajada de " + $rajMax + " consecutivos, " + $rajG + " evento(s) de rajada" } >>"%PFALA%"
 echo if ($alt -ge 3) { $partes += "padrao alternado (" + $alt + " perdas em cadencia curta)" } >>"%PFALA%"
 echo $obs = ($partes -join " e ") + " em " + $env + " pacotes (" + $pctTxt + " por cento) - perda continua real, nao e limite de ICMP" >>"%PFALA%"
 echo } >>"%PFALA%"
 echo elseif ($ev -eq 2) { >>"%PFALA%"
-echo if ($consenso) { $nRaj = 5; $obs = "evidencia moderada (evento unico de 2 consecutivas ou alternancia leve) corroborada por perda em outros destinos" } >>"%PFALA%"
+echo $nBase = NotaPer $pct >>"%PFALA%"
+echo if ($consenso) { $nRaj = [Math]::Max($nBase,5); $obs = "evento de perda (2 consecutivas ou alternancia) com perda tambem em outros destinos" } >>"%PFALA%"
 echo else { >>"%PFALA%"
-echo $nRaj = 3 >>"%PFALA%"
-echo if ($rajMax -eq 2) { $obs = "indicio fraco: um unico evento de 2 perdas consecutivas em " + $env + " pacotes (" + $pctTxt + " por cento), sem eco nos demais destinos - monitorar e repetir com teste mais longo" } >>"%PFALA%"
-echo else { $obs = "indicio fraco: alternancia leve de perdas (" + $alt + " pares proximos), sem eco nos demais destinos - monitorar e repetir com teste mais longo" } >>"%PFALA%"
+echo $nRaj = [Math]::Max($nBase,3) >>"%PFALA%"
+echo if ($rajMax -eq 2) { $obs = "evento de 2 perdas consecutivas em " + $env + " pacotes (" + $pctTxt + " por cento) - perda contabilizada" } >>"%PFALA%"
+echo else { $obs = "alternancia de perdas (" + $alt + " pares proximos) em " + $env + " pacotes (" + $pctTxt + " por cento) - perda contabilizada" } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo elseif ($ev -eq 1) { >>"%PFALA%"
 echo $nRaj = NotaPer $pct >>"%PFALA%"
-echo if ($pct -le 2) { $obs = "perda isolada (provavel limitacao de ICMP ou evento momentaneo) - " + $to + " de " + $env + " pacotes, 1 pacote = " + $peso + " por cento" } >>"%PFALA%"
-echo elseif ($pct -le 5) { $obs = [string]$to + " perdas isoladas em " + $env + " pacotes, nenhuma rajada - compativel com limitacao de ICMP; sem evidencia de queda de enlace" } >>"%PFALA%"
-echo else { $obs = "volume alto de perdas isoladas (" + $to + " de " + $env + "), porem nenhuma rajada - correlacionar com jitter e repetir com teste mais longo" } >>"%PFALA%"
+echo if ($pct -le 2) { $obs = "perda de " + $to + " de " + $env + " pacotes (" + $pctTxt + " por cento), sem rajada - contabilizada na classificacao" } >>"%PFALA%"
+echo elseif ($pct -le 5) { $obs = [string]$to + " perdas em " + $env + " pacotes (" + $pctTxt + " por cento), sem rajada - contabilizada na classificacao" } >>"%PFALA%"
+echo else { $obs = "volume alto de perda (" + $to + " de " + $env + " pacotes, " + $pctTxt + " por cento), sem rajada continua - contabilizada integralmente" } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo else { $nRaj = 0 } >>"%PFALA%"
 echo $nMed = NotaMed ([int]$pmedA[$i]) >>"%PFALA%"
 echo $nMax = NotaMax ([int]$pmaxA[$i]) >>"%PFALA%"
 echo $nJit = NotaJit ([int]$jitA[$i]) >>"%PFALA%"
 echo $nPer = NotaPer $pct >>"%PFALA%"
+echo if ($i -eq 0 -and $pct -gt 2) { >>"%PFALA%"
+echo $piorFora = -1 >>"%PFALA%"
+echo for ($k = 1; $k -le 5; $k = $k + 1) { if ($evA[$k] -ge 0 -and $envA[$k] -gt 0 -and $pctA[$k] -gt $piorFora) { $piorFora = $pctA[$k] } } >>"%PFALA%"
+echo if ($piorFora -ge 0 -and $pct -ge (($piorFora * 3) + 2)) { >>"%PFALA%"
+echo if ($nPer -gt 2) { $nPer = 2 } >>"%PFALA%"
+echo if ($nRaj -gt 2) { $nRaj = 2 } >>"%PFALA%"
+echo $obs = "o gateway deixou de responder " + $pctTxt + " por cento dos pings, porem os destinos externos - cujo trafego PASSA por ele - perderam apenas " + $piorFora + " por cento. Perda real no trecho PC-roteador atingiria tambem os externos, entao isto e limitacao de resposta ICMP do proprio roteador e NAO perda de trafego. Nao condena o equipamento." >>"%PFALA%"
+echo } >>"%PFALA%"
+echo } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($obs -eq "") { $obs = "sobraram poucas amostras livres de saturacao (" + $env + " pings limpos) - veredito limitado a ACEITAVEL por prudencia; repita sem speedtest para julgar latencia." } } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($nRaj -gt 2) { $nRaj = 2 } } >>"%PFALA%"
 echo $pior = $nRaj >>"%PFALA%"
@@ -1051,7 +1066,7 @@ echo if ($classe -like "PROBLEMA*") { $tag = "rajada de " + $rajMax; if ($rajMax
 echo elseif ($classe -eq "REPROVADO") { $reprovados += ($nomes[$i] + $puxou) } >>"%PFALA%"
 echo elseif ($classe -eq "RUIM") { $ruins += ($nomes[$i] + $puxou) } >>"%PFALA%"
 echo elseif ($classe -eq "ATENCAO") { $atencoes += $nomes[$i] } >>"%PFALA%"
-echo if ($nRaj -eq 3 -and $classe -eq "RUIM") { $suspeitos += $nomes[$i] } >>"%PFALA%"
+:: regra SUSPEITO removida - toda perda entra na classificacao
 echo } >>"%PFALA%"
 echo Set-Content -Path (Join-Path $pasta "PERDA_PACOTES.csv") -Value $linhasCsv -Encoding UTF8 >>"%PFALA%"
 echo $curto = "Teste finalizado. " >>"%PFALA%"
@@ -2993,7 +3008,7 @@ if not defined PROB_TG if not defined PROB_IA goto :eof
 :: --- achou problema: mostra e oferece corrigir ---
 :MOSTRAR_PROBLEMA
 cls
-color 6F
+color 0E
 echo #############################################################
 echo #          VERIFICACAO DE CONFIGURACAO                      #
 echo #############################################################
@@ -3057,7 +3072,7 @@ goto VERIFICAR_CHAVES
 set /a "IGN_REC=%IGN_REC%+1"
 if %IGN_REC% GEQ 4 goto :eof
 cls
-color 4F
+color 0C
 echo #############################################################
 echo #                  A T E N C A O                           #
 echo #############################################################
@@ -3091,7 +3106,7 @@ goto IGNORAR_AVISO
 
 :IGNORAR_FINAL
 cls
-color 4F
+color 0C
 echo   -----------------------------------------------------------
 echo   Ok, seguindo com a configuracao com problema.
 echo   Lembre-se de corrigir depois no config.ini para ter
