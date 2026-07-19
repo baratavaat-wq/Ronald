@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1035"
+set "VER=1036"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -822,6 +822,7 @@ echo if ($flag -eq "6") { $ver = "IPv6" } >>"%PBEEP%"
 echo $pastaLog = Split-Path $log -Parent >>"%PBEEP%"
 echo $sat1 = Join-Path $pastaLog '_sat_speed.flag' >>"%PBEEP%"
 echo $sat2 = Join-Path $pastaLog '_sat_fast.flag' >>"%PBEEP%"
+echo $hb = Join-Path $env:TEMP 'lr_hb.flag' >>"%PBEEP%"
 echo Add-Content -Path $log -Value ("=== PING " + $alvo + " " + $ver + " limite " + $limite + "ms ===") >>"%PBEEP%"
 echo $argos = @() >>"%PBEEP%"
 echo if ($flag -eq "6") { $argos += "-6" } >>"%PBEEP%"
@@ -831,6 +832,8 @@ echo $argos += "-n" >>"%PBEEP%"
 echo $argos += "$qtd" >>"%PBEEP%"
 echo ping @argos ^| ForEach-Object { >>"%PBEEP%"
 echo $linha = $_ >>"%PBEEP%"
+echo if (-not (Test-Path $hb)) { exit } >>"%PBEEP%"
+echo if ((((Get-Date) - (Get-Item $hb).LastWriteTime).TotalSeconds) -gt 20) { exit } >>"%PBEEP%"
 echo $emSat = ((Test-Path $sat1) -or (Test-Path $sat2)) >>"%PBEEP%"
 echo if ($emSat) { $linha = "[SAT] " + $linha } >>"%PBEEP%"
 echo Write-Host $linha >>"%PBEEP%"
@@ -871,7 +874,7 @@ echo $nomes = @("roteador","internet","servidor","IPv6","extra IPv4","extra IPv6
 echo $ends  = @($aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6) >>"%PFALA%"
 echo $limites = @([int]$lRot, [int]$lInt, [int]$lSrv, [int]$lIp6, [int]$lExt, [int]$lExt6) >>"%PFALA%"
 echo for ($j = 0; $j -lt 6; $j = $j + 1) { if ($limites[$j] -le 0) { $limites[$j] = 120 }; if (-not $ends[$j]) { $ends[$j] = "-" } } >>"%PFALA%"
-echo $toA = @(0,0,0,0,0,0); $envA = @(0,0,0,0,0,0); $respA = @(0,0,0,0,0,0); $hiA = @(0,0,0,0,0,0) >>"%PFALA%"
+echo $toA = @(0,0,0,0,0,0); $envA = @(0,0,0,0,0,0); $respA = @(0,0,0,0,0,0); $hiA = @(0,0,0,0,0,0); $toTA = @(0,0,0,0,0,0); $envTA = @(0,0,0,0,0,0) >>"%PFALA%"
 echo $rajA = @(0,0,0,0,0,0); $rajGA = @(0,0,0,0,0,0); $rajMaxA = @(0,0,0,0,0,0); $altA = @(0,0,0,0,0,0) >>"%PFALA%"
 echo $dnsA = @(0,0,0,0,0,0); $pctA = @(0,0,0,0,0,0) >>"%PFALA%"
 echo $pminA = @(-1,-1,-1,-1,-1,-1); $pmedA = @(-1,-1,-1,-1,-1,-1); $pmaxA = @(-1,-1,-1,-1,-1,-1); $jitA = @(-1,-1,-1,-1,-1,-1) >>"%PFALA%"
@@ -880,12 +883,16 @@ echo $evA = @(0,0,0,0,0,0); $clsA = @("","","","","",""); $pesoA = @("-","-","-"
 echo $semIpv6 = $false >>"%PFALA%"
 echo for ($i = 0; $i -lt 6; $i = $i + 1) { >>"%PFALA%"
 echo $arq = Join-Path $pasta $alvos[$i] >>"%PFALA%"
-echo $to = 0; $hi = 0; $env = 0; $resp = 0; $dns = 0; $seq = 0; $raj = 0; $rajG = 0; $rajMax = 0; $alt = 0; $lastLoss = -99 >>"%PFALA%"
+echo $to = 0; $hi = 0; $env = 0; $resp = 0; $dns = 0; $seq = 0; $raj = 0; $rajG = 0; $rajMax = 0; $alt = 0; $lastLoss = -99; $toSat = 0; $envSat = 0 >>"%PFALA%"
 echo $lat = New-Object System.Collections.ArrayList >>"%PFALA%"
 echo if (Test-Path $arq) { >>"%PFALA%"
 echo foreach ($linha in (Get-Content $arq)) { >>"%PFALA%"
 echo $txt = [string]$linha >>"%PFALA%"
-echo if ($txt.StartsWith("[SAT]")) { continue } >>"%PFALA%"
+echo if ($txt.StartsWith("[SAT]")) { >>"%PFALA%"
+echo if ($txt -match "(?i)(encontrar o host|find host|esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $toSat = $toSat + 1; $envSat = $envSat + 1 } >>"%PFALA%"
+echo elseif ($txt -match "(?i)[=]\s*([0-9]+)\s*ms") { $envSat = $envSat + 1 } >>"%PFALA%"
+echo continue >>"%PFALA%"
+echo } >>"%PFALA%"
 echo $perdeu = $false >>"%PFALA%"
 echo if ($txt -match "(?i)(encontrar o host|find host)") { $dns = $dns + 1; $perdeu = $true } >>"%PFALA%"
 echo elseif ($txt -match "(?i)(esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $perdeu = $true } >>"%PFALA%"
@@ -893,10 +900,11 @@ echo elseif ($txt -match "(?i)[=]\s*([0-9]+)\s*ms") { $ms = [int]$Matches[1]; $e
 echo if ($perdeu) { $to = $to + 1; $env = $env + 1; $seq = $seq + 1; if ($seq -eq 1) { $raj = $raj + 1; if ($lastLoss -gt 0 -and ($env - $lastLoss) -le 3) { $alt = $alt + 1 } }; if ($seq -eq 2) { $rajG = $rajG + 1 }; if ($seq -gt $rajMax) { $rajMax = $seq }; $lastLoss = $env } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo } >>"%PFALA%"
-echo $pct = 0; if ($env -gt 0) { $pct = [math]::Round(($to / $env) * 100, 1) } >>"%PFALA%"
+echo $envT = $env + $envSat; $toT = $to + $toSat >>"%PFALA%"
+echo $pct = 0; if ($envT -gt 0) { $pct = [math]::Round(($toT / $envT) * 100, 1) } >>"%PFALA%"
 echo if ($env -gt 0) { $pesoA[$i] = ([math]::Round(100.0 / $env, 1)).ToString($ci) } >>"%PFALA%"
 echo if ($resp -gt 0) { $st = $lat ^| Measure-Object -Minimum -Maximum -Average; $pminA[$i] = [int]$st.Minimum; $pmaxA[$i] = [int]$st.Maximum; $pmedA[$i] = [math]::Round($st.Average); $jitA[$i] = $pmaxA[$i] - $pminA[$i]; $ord = $lat ^| Sort-Object; $n = $ord.Count; if ($n %% 2 -eq 1) { $pmedianA[$i] = [int]$ord[[math]::Floor($n/2)] } else { $pmedianA[$i] = [int][math]::Round(($ord[$n/2 - 1] + $ord[$n/2]) / 2) } } >>"%PFALA%"
-echo $toA[$i] = $to; $envA[$i] = $env; $respA[$i] = $resp; $hiA[$i] = $hi; $rajA[$i] = $raj; $rajGA[$i] = $rajG; $rajMaxA[$i] = $rajMax; $altA[$i] = $alt; $dnsA[$i] = $dns; $pctA[$i] = $pct >>"%PFALA%"
+echo $toTA[$i] = $toT; $envTA[$i] = $envT; $toA[$i] = $to; $envA[$i] = $env; $respA[$i] = $resp; $hiA[$i] = $hi; $rajA[$i] = $raj; $rajGA[$i] = $rajG; $rajMaxA[$i] = $rajMax; $altA[$i] = $alt; $dnsA[$i] = $dns; $pctA[$i] = $pct >>"%PFALA%"
 echo if ($i -eq 3 -and $temIpv6 -ne "1") { $clsA[$i] = "SEM IPV6 NA REDE"; $semIpv6 = $true; $evA[$i] = -1 } >>"%PFALA%"
 echo elseif ($env -eq 0) { $clsA[$i] = "SEM DADOS"; $evA[$i] = -1 } >>"%PFALA%"
 echo elseif (($i -eq 3 -or $i -eq 5) -and $resp -eq 0 -and $dns -gt 0) { $clsA[$i] = "ALVO SEM IPV6"; $evA[$i] = -1 } >>"%PFALA%"
@@ -943,7 +951,7 @@ echo $totTo = 0; $totHi = 0; $problemas = @(); $atencoes = @(); $suspeitos = @()
 echo $linhasCsv = @("alvo;enviados;perdidos;perda_percentual;ping_min;ping_medio;ping_max;picos;classificacao") >>"%PFALA%"
 echo for ($i = 0; $i -lt 6; $i = $i + 1) { >>"%PFALA%"
 echo if ($i -ge 4 -and $envA[$i] -eq 0) { continue } >>"%PFALA%"
-echo $to = $toA[$i]; $env = $envA[$i]; $resp = $respA[$i]; $hi = $hiA[$i]; $raj = $rajA[$i]; $rajG = $rajGA[$i]; $rajMax = $rajMaxA[$i]; $alt = $altA[$i]; $pct = $pctA[$i]; $peso = $pesoA[$i] >>"%PFALA%"
+echo $envLimpo = $envA[$i]; $to = $toTA[$i]; $env = $envTA[$i]; $resp = $respA[$i]; $hi = $hiA[$i]; $raj = $rajA[$i]; $rajG = $rajGA[$i]; $rajMax = $rajMaxA[$i]; $alt = $altA[$i]; $pct = $pctA[$i]; $peso = $pesoA[$i] >>"%PFALA%"
 echo $pctTxt = $pct.ToString($ci) >>"%PFALA%"
 echo $pmin = "-"; $pmed = "-"; $pmax = "-"; $jit = "-" >>"%PFALA%"
 echo if ($resp -gt 0) { $pmin = $pminA[$i]; $pmed = $pmedA[$i]; $pmax = $pmaxA[$i]; $jit = $jitA[$i] } >>"%PFALA%"
@@ -990,7 +998,7 @@ echo if ($nRaj -gt 2) { $nRaj = 2 } >>"%PFALA%"
 echo $obs = "o gateway deixou de responder " + $pctTxt + " por cento dos pings, porem os destinos externos - cujo trafego PASSA por ele - perderam apenas " + $piorFora + " por cento. Perda real no trecho PC-roteador atingiria tambem os externos, entao isto e limitacao de resposta ICMP do proprio roteador e NAO perda de trafego. Nao condena o equipamento." >>"%PFALA%"
 echo } >>"%PFALA%"
 echo } >>"%PFALA%"
-echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($obs -eq "") { $obs = "sobraram poucas amostras livres de saturacao (" + $env + " pings limpos) - veredito limitado a ACEITAVEL por prudencia; repita sem speedtest para julgar latencia." } } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $envLimpo -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($obs -eq "") { $obs = "sobraram poucas amostras livres de saturacao (" + $env + " pings limpos) - veredito limitado a ACEITAVEL por prudencia; repita sem speedtest para julgar latencia." } } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($nRaj -gt 2) { $nRaj = 2 } } >>"%PFALA%"
 echo $pior = $nRaj >>"%PFALA%"
 echo $quem = "rajada/perda continua" >>"%PFALA%"
@@ -1087,10 +1095,10 @@ echo } elseif ($ruins.Count -gt 0) { >>"%PFALA%"
 echo $curto = $curto + "Latencia ruim em " + ($ruins -join ", ") + "." >>"%PFALA%"
 echo [console]::beep(700,400); [console]::beep(600,400) >>"%PFALA%"
 echo } elseif ($suspeitos.Count -gt 0) { >>"%PFALA%"
-echo $curto = $curto + "Indicio fraco de perda em " + ($suspeitos -join ", ") + " - sem consenso; monitorar." >>"%PFALA%"
+echo $curto = $curto + "Perda registrada em " + ($suspeitos -join ", ") + "." >>"%PFALA%"
 echo [console]::beep(1000,300); [console]::beep(800,300) >>"%PFALA%"
 echo } elseif ($atencoes.Count -gt 0) { >>"%PFALA%"
-echo $curto = $curto + "Sem rajadas, porem volume alto de perdas isoladas em " + ($atencoes -join ", ") + "." >>"%PFALA%"
+echo $curto = $curto + "Volume alto de perda, sem rajada continua, em " + ($atencoes -join ", ") + "." >>"%PFALA%"
 echo [console]::beep(1000,300); [console]::beep(800,300) >>"%PFALA%"
 echo } elseif ($totHi -gt 0) { >>"%PFALA%"
 echo $curto = $curto + "Sem perda real, com " + $totHi + " picos de ping." >>"%PFALA%"
@@ -1171,9 +1179,9 @@ echo $diagT += "Perda continua apenas nos alvos IPv6, com todos os alvos IPv4 in
 echo $diagT += "O enlace fisico esta saudavel; a falha e da pilha ou da rota IPv6 da operadora." >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($cen -eq 'SUSPEITA') { >>"%PFALA%"
-echo $diagT += "Indicio fraco de perda real em: " + ($suspeitos -join ", ") + "." >>"%PFALA%"
+echo $diagT += "Perda registrada em: " + ($suspeitos -join ", ") + "." >>"%PFALA%"
 echo $diagT += "O padrao observado (evento unico de perdas consecutivas ou alternancia leve) nao encontrou eco nos demais destinos." >>"%PFALA%"
-echo $diagT += "Sem consenso entre alvos e com o gateway integro, nao ha base para condenar a rede - repetir com teste mais longo antes de qualquer acao." >>"%PFALA%"
+echo $diagT += "Perda registrada apenas em parte dos destinos, com o gateway integro. Repetir o teste para confirmar a extensao." >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($cen -eq 'LATREPROVA') { >>"%PFALA%"
 echo $diagT += "Sem perda continua, porem a LATENCIA reprova o enlace - a nota final e definida pelo pior criterio, nao apenas pela perda." >>"%PFALA%"
@@ -1186,13 +1194,13 @@ echo } >>"%PFALA%"
 echo if ($cen -eq 'JITTER') { >>"%PFALA%"
 echo $diagT += "Nenhuma perda continua; ha picos de latencia (jitter) acima do limite configurado." >>"%PFALA%"
 echo $diagT += "Sintoma de meio compartilhado disputado ou de fila em algum salto - afeta voz e jogo, nao afeta download." >>"%PFALA%"
-echo if ($isoExt) { $diagT += "As perdas isoladas observadas sao compativeis com limitacao de ICMP e nao caracterizam queda." } >>"%PFALA%"
+echo if ($isoExt) { $diagT += "As perdas ocorreram sem rajada continua." } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($cen -eq 'ISOLADAS') { >>"%PFALA%"
-echo $diagT += "O enlace local permanece estavel. Foram observadas perdas isoladas em destinos externos," >>"%PFALA%"
+echo $diagT += "O enlace local permanece estavel. Foi registrada perda em destinos externos," >>"%PFALA%"
 echo $diagT += "compativeis com limitacao de respostas ICMP ou eventos transitorios da rede." >>"%PFALA%"
 echo $diagT += "Nao ha evidencias suficientes para concluir falha no equipamento do cliente." >>"%PFALA%"
-echo if ($atenc) { $diagT += "Volume alto de perdas isoladas em: " + ($atencoes -join ', ') + " - repetir com teste mais longo e correlacionar com jitter." } >>"%PFALA%"
+echo if ($atenc) { $diagT += "Volume alto de perda em: " + ($atencoes -join ', ') + " - contabilizado na classificacao; correlacionar com jitter." } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($cen -eq 'LATENCIA') { >>"%PFALA%"
 echo $diagT += "Sem perda e sem jitter relevante, porem com latencia media alta." >>"%PFALA%"
@@ -1217,12 +1225,12 @@ echo if ($pts -ge 5) { $conf = "ALTA" } elseif ($pts -ge 3) { $conf = "MEDIA" } 
 echo $confTxt = "confianca de que EXISTE falha real" >>"%PFALA%"
 echo } elseif ($suspeitos.Count -gt 0) { >>"%PFALA%"
 echo $conf = "BAIXA"; $confTxt = "confianca de que existe falha real" >>"%PFALA%"
-echo $sinais += "apenas indicios fracos, sem consenso entre destinos" >>"%PFALA%"
+echo $sinais += "perda registrada em um unico destino" >>"%PFALA%"
 echo } else { >>"%PFALA%"
 echo if ($amostraRef -ge 300 -and $nMod -eq 0 -and $nForte -eq 0) { $conf = "ALTA" } else { $conf = "MEDIA" } >>"%PFALA%"
 echo $confTxt = "confianca de que NAO ha falha real" >>"%PFALA%"
 echo if ($clsA[0] -eq "EXCELENTE") { $sinais += "gateway integro isola o trecho local" } >>"%PFALA%"
-echo if ($nIsoPerda -gt 0) { $sinais += "perdas apenas isoladas (padrao de limite de ICMP)" } >>"%PFALA%"
+echo if ($nIsoPerda -gt 0) { $sinais += "perda sem rajada continua" } >>"%PFALA%"
 echo if ($amostraRef -ge 300) { $sinais += "amostra suficiente (" + $amostraRef + " pacotes)" } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo $dg = @() >>"%PFALA%"
@@ -1308,12 +1316,12 @@ echo $rel += "---------------------------------------------------------" >>"%PFA
 echo $rel += "  Ping medio : ate 50 EXCELENTE / 100 BOM / 150 ACEITAVEL / 200 RUIM / acima REPROVADO" >>"%PFALA%"
 echo $rel += "  Ping maximo: ate 150 EXCELENTE / 300 BOM / 600 ACEITAVEL / 1000 RUIM / acima REPROVADO" >>"%PFALA%"
 echo $rel += "  Jitter     : ate 20 EXCELENTE / 50 BOM / 100 ACEITAVEL / 200 RUIM / acima REPROVADO" >>"%PFALA%"
-echo $rel += "  Perda      : ate 2 %% EXCELENTE / 5 %% BOM / acima ACEITAVEL (se isolada)" >>"%PFALA%"
+echo $rel += "  Perda      : 0 %% EXCELENTE / ate 1 %% BOM / ate 2,5 %% ACEITAVEL" >>"%PFALA%"
 echo $rel += "  Rajada     : 2 consecutivas com contexto = PROBLEMA DETECTADO" >>"%PFALA%"
 echo $rel += "               3 ou mais consecutivas = PROBLEMA GRAVE" >>"%PFALA%"
-echo $rel += "               indicio fraco sem consenso = RUIM (monitorar, nao condena)" >>"%PFALA%"
+echo $rel += "               ate 5 %% RUIM / ate 10 %% REPROVADO / ate 25 %% PROBLEMA" >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
-echo $rel += "  Perda isolada nao condena o enlace: padrao tipico de limite de ICMP." >>"%PFALA%"
+echo $rel += "  Toda perda registrada entra na classificacao, isolada ou em rajada." >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo $rel += "COMO LER O SCORE (0 a 100)" >>"%PFALA%"
@@ -1440,8 +1448,10 @@ del "%PWAIT%" >nul 2>&1
 echo param($segundos, $gw, $alvo, $mins, $tec, $conx) >>"%PWAIT%"
 echo if (-not $segundos) { $segundos = 900 } >>"%PWAIT%"
 echo [Console]::TreatControlCAsInput = $true >>"%PWAIT%"
+echo $hb = Join-Path $env:TEMP 'lr_hb.flag' >>"%PWAIT%"
 echo $fim = (Get-Date).AddSeconds([int]$segundos) >>"%PWAIT%"
 echo while ((Get-Date) -lt $fim) { >>"%PWAIT%"
+echo try { Set-Content -Path $hb -Value ([string](Get-Date).Ticks) -ErrorAction SilentlyContinue } catch {} >>"%PWAIT%"
 echo $rest = [int][math]::Floor(($fim - (Get-Date)).TotalSeconds) >>"%PWAIT%"
 echo if ($rest -lt 0) { $rest = 0 } >>"%PWAIT%"
 echo $m = [int][math]::Floor($rest / 60) >>"%PWAIT%"
@@ -1456,7 +1466,8 @@ echo Write-Host ("  Conexao  : " + $conx) >>"%PWAIT%"
 echo Write-Host ("  Teste de : " + $mins + " minutos") >>"%PWAIT%"
 echo Write-Host ("  TEMPO RESTANTE: " + ("{0:00}:{1:00}" -f $m, $s)) >>"%PWAIT%"
 echo Write-Host ("") >>"%PWAIT%"
-echo Write-Host "  Ctrl+C ou F = encerrar agora, falar e enviar ao Telegram." >>"%PWAIT%"
+echo Write-Host "  Aperte  F  para encerrar agora, falar e enviar ao Telegram." -ForegroundColor Green >>"%PWAIT%"
+echo Write-Host "  Ctrl+C aborta tudo e NAO gera laudo nem envia nada." -ForegroundColor Yellow >>"%PWAIT%"
 echo Write-Host "=====================================================" >>"%PWAIT%"
 echo $t0 = Get-Date >>"%PWAIT%"
 echo while (((Get-Date) - $t0).TotalMilliseconds -lt 1000) { >>"%PWAIT%"
@@ -1511,6 +1522,7 @@ if defined FASTEXE (
 
 :: ABAS 1 a 6 - PINGS AO VIVO COM BIP
 echo Abrindo as abas de ping com BIP...
+break>"%TEMP%\lr_hb.flag" 2>nul
 start "LAUDO_PING_MODEM"    cmd /k color 0A ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%GW%" "%LAUDO%\ping_modem.txt" %LIMITE_ROTEADOR% %QTD_PING%
 start "LAUDO_PING_INTERNET" cmd /k color 0E ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_INTERNET%" "%LAUDO%\ping_internet.txt" %LIMITE_INTERNET% %QTD_PING% 4
 start "LAUDO_PING_SERVIDOR" cmd /k color 0B ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%SERVIDOR%" "%LAUDO%\ping_servidor.txt" %LIMITE_SERVIDOR% %QTD_PING%
@@ -1530,7 +1542,7 @@ if defined ALVO_EXTRA_IPV6 if "%TEM_IPV6%"=="1" (
 )
 echo.
 
-:: ESPERA (Ctrl+C ou F encerra na hora)
+:: ESPERA (F encerra na hora e gera o laudo; Ctrl+C aborta sem laudo)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PWAIT%" %QTD_PING% "%GW%" "%ALVO_INTERNET%" "%MINUTOS%" "%TECNICO%" "%CONEXAO%"
 
 :: =========================================================
@@ -1539,9 +1551,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%PWAIT%" %QTD_PING% "%GW%" 
 :FINALIZAR
 cls
 echo Encerrando testes e gerando laudo tecnico...
-:: 1) fecha as janelas pelo TITULO EXATO (nunca por curinga, para nao
-::    acertar a janela principal por engano)
-for %%W in (LAUDO_PING_MODEM LAUDO_PING_INTERNET LAUDO_PING_SERVIDOR LAUDO_PING_EXTRA LAUDO_PING_IPV6 LAUDO_PING_EXTRA6 LAUDO_SPEED LAUDO_FAST) do taskkill /F /T /FI "WINDOWTITLE eq %%W" >nul 2>&1
+:: 1) apaga o sinal de vida: cada aba de ping percebe e se encerra sozinha.
+::    NAO usar taskkill por WINDOWTITLE: no Windows Terminal o titulo da
+::    janela e o da aba ativa, e o /T derrubava a janela principal junto.
+del "%TEMP%\lr_hb.flag" >nul 2>&1
+timeout /t 2 /nobreak >nul
 
 :: 2) varredura de sobra - IGNORA o proprio PowerShell e o pai dele.
 ::    (sem isso, o proprio comando se encontrava na busca e se matava)
@@ -1581,8 +1595,8 @@ if exist "%LAUDO%\PERDA_PACOTES.csv" (
 ) else (
   echo   [AVISO] PERDA_PACOTES.csv nao encontrado - veja os logs de ping.
 )
-echo   Perda isolada nao reprova. Rajada e avaliada com contexto de amostra e consenso.
-echo   SUSPEITO = indicio fraco sem consenso entre destinos - monitorar, nao reprova.
+echo   Toda perda registrada entra na classificacao. Rajada agrava a nota.
+echo   A perda so nao condena quando o proprio teste prova ser limite de ICMP.
 echo.
 echo  LAUDO TECNICO : %LAUDO%\VEREDITO.txt
 echo  PASTA COMPLETA: %LAUDO%
@@ -1600,6 +1614,7 @@ echo.
 :: limpeza dos temporarios gerados por este laudo
 del "%PBEEP%" "%PFALA%" "%PWAIT%" "%PTG%" "%PNET%" "%PCHK%" "%PSAN%" "%PVER%" >nul 2>&1
 del "%LAUDO%\_sat_speed.flag" "%LAUDO%\_sat_fast.flag" >nul 2>&1
+del "%TEMP%\lr_hb.flag" >nul 2>&1
 del "%TEMP%\speed_loop.bat" "%TEMP%\fast_loop.bat" "%TEMP%\lr_ver.ps1" "%TEMP%\lr_notas.txt" >nul 2>&1
 echo.
 
@@ -2231,7 +2246,7 @@ echo REGRAS DE OURO ^(nao condenar link a toa^):>>"%KB%"
 echo - Perda SO no gateway = LOCAL ^(cabo/Wi-Fi/roteador do cliente^).>>"%KB%"
 echo - Perda so DEPOIS do gateway ^(gateway limpo^) = FORA ^(operadora/rota^),>>"%KB%"
 echo   NAO condena equipamento do cliente.>>"%KB%"
-echo - 1 pacote isolado perdido pode ser rate-limit ICMP do destino,>>"%KB%"
+echo - Toda perda medida entra na classificacao do laudo, isolada ou nao.>>"%KB%"
 echo   NAO e perda real. Nao reprovar link por isso.>>"%KB%"
 echo - Pico unico de ping, sem jitter alto e sem perda, NAO reprova.>>"%KB%"
 echo.>>"%KB%"
@@ -2381,7 +2396,7 @@ echo #####################################################>>"%KB%"
 echo - Portugues do Brasil, direto e pratico ^(tecnico tem pressa^).>>"%KB%"
 echo - Use os NUMEROS reais do teste que vierem no contexto.>>"%KB%"
 echo - Sempre separe ^"problema local ^(cliente^)^" de ^"problema de fora ^(operadora^)^".>>"%KB%"
-echo - NUNCA condene link/operadora por pico isolado ou 1 pacote perdido.>>"%KB%"
+echo - Pico isolado de latencia, sozinho, nao condena o link. Perda condena.>>"%KB%"
 echo - Priorize o optico quando houver LOS vermelha.>>"%KB%"
 echo - Nao invente numero. Se faltar dado, diga o que verificar.>>"%KB%"
 echo - Respostas curtas e resolutivas, nada de enrolar.>>"%KB%"
@@ -2539,7 +2554,7 @@ echo VELOCIDADE:       comparar com plano; testar no cabo; overhead ~10%%.>>"%KB
 echo.>>"%KB%"
 echo REGRA MESTRE: gateway ruim = problema do cliente ^(local^).>>"%KB%"
 echo               gateway bom + internet ruim = problema de fora ^(operadora^).>>"%KB%"
-echo               nunca condenar por 1 pico ou 1 pacote isolado.>>"%KB%"
+echo               pico isolado nao condena; perda sempre entra na conta.>>"%KB%"
 echo               tempo real / status atual = mandar procurar na web.>>"%KB%"
 echo.>>"%KB%"
 echo #####################################################>>"%KB%"
