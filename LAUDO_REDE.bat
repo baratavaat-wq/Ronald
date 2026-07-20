@@ -72,7 +72,7 @@ set "LIMITE_INTERNET=120"
 ::           10.1.1.1 / 192.168.1.10 / 172.16.0.1 / srv.local
 ::   MUDA  : LIMITE = ms para bipar como ping alto
 :: +=======================================================+
-set "SERVIDOR=10.1.1.77"
+set "SERVIDOR=10.1.1.7"
 set "LIMITE_SERVIDOR=120"
 
 
