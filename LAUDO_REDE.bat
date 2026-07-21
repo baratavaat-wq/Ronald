@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1042"
+set "VER=1044"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -162,7 +162,37 @@ set "GW="
 for /f "tokens=3" %%g in ('route print -4 ^| findstr /r /c:"^ *0\.0\.0\.0 *0\.0\.0\.0"') do if not defined GW set "GW=%%g"
 :: plano B: se o route print nao achou, tenta pelo PowerShell (redes/VPN modernas)
 if not defined GW for /f "delims=" %%g in ('powershell -NoProfile -Command "(Get-NetIPConfiguration ^| Where-Object { $_.IPv4DefaultGateway -ne $null } ^| Select-Object -First 1 -ExpandProperty IPv4DefaultGateway).NextHop" 2^>nul') do if not defined GW set "GW=%%g"
+:: plano C: ipconfig (compatibilidade pedida) - so aceita IPv4 valido, sem IP fixo
+if not defined GW call :GW_POR_IPCONFIG
+:: marca se achou DE VERDADE; se nao, usa um padrao so p/ nao travar o ping da ABA1
+if defined GW (set "GW_ACHADO=1") else (set "GW_ACHADO=0")
 if not defined GW set "GW=192.168.0.1"
+
+:: =========================================================
+:: MAC DO ROTEADOR (Gateway) - deteccao automatica
+::   - usa o GW ja detectado acima (NUNCA um IP fixo)
+::   - le o MAC na tabela ARP (arp -a)
+::   - se a entrada ARP nao existir, faz 1 ping no GW para
+::     preencher a tabela e tenta de novo
+:: =========================================================
+set "GW_MAC="
+if "%GW_ACHADO%"=="0" goto MAC_MSG
+call :OBTER_MAC_ARP
+if defined GW_MAC goto MAC_UP
+ping -n 1 -w 800 %GW% >nul 2>&1
+call :OBTER_MAC_ARP
+:MAC_UP
+if not defined GW_MAC goto MAC_MSG
+:: arp devolve o MAC em minusculo; deixa em MAIUSCULO p/ o laudo
+set "GW_MAC=!GW_MAC:a=A!"
+set "GW_MAC=!GW_MAC:b=B!"
+set "GW_MAC=!GW_MAC:c=C!"
+set "GW_MAC=!GW_MAC:d=D!"
+set "GW_MAC=!GW_MAC:e=E!"
+set "GW_MAC=!GW_MAC:f=F!"
+:MAC_MSG
+if "%GW_ACHADO%"=="1" (set "GW_TXT=%GW%") else (set "GW_TXT=Gateway nao encontrado")
+if not defined GW_MAC set "GW_MAC=MAC do roteador nao encontrado"
 
 :: CHECAGEM PREVIA DE IPv6 (ABA 5 e 6)
 set "PCHK=%TEMP%\chk_ipv6.ps1"
@@ -588,6 +618,7 @@ echo  TEMPO DE TESTE    : %MINUTOS% minutos   ^(%QTD_PING% pings^)
 echo  Telegram          : %TG_ENVIAR%
 echo.
 echo  ABA1 Roteador     : %GW%   ^(limite %LIMITE_ROTEADOR% ms^)
+echo  MAC Roteador      : %GW_MAC%
 echo  ABA2 Internet     : %ALVO_INTERNET%   ^(limite %LIMITE_INTERNET% ms^)
 echo  ABA3 Servidor     : %SERVIDOR%   ^(limite %LIMITE_SERVIDOR% ms^)
 echo  ABA4 Extra IPv4   : %TXT_EXTRA%
@@ -611,12 +642,31 @@ echo CONEXAO        : %CONEXAO%
 echo DURACAO        : %MINUTOS% minutos
 echo COMPUTADOR     : %COMPUTERNAME%
 echo USUARIO        : %USERNAME%
-echo ROTEADOR       : %GW%
+echo ROTEADOR       : %GW_TXT%
+echo MAC ROTEADOR   : %GW_MAC%
 echo INTERNET IPv4  : %ALVO_INTERNET%
 echo SERVIDOR       : %SERVIDOR%
 echo EXTRA IPv4     : %TXT_EXTRA%
 echo IPV6           : %TXT_IPV6%
 echo EXTRA IPv6     : %TXT_EXTRA6%
+echo.
+echo.
+echo ---------------------------------------------------------
+echo COMO LER A PERDA DE PACOTES ^(para o tecnico^):
+echo - Toda perda registrada CONTA na nota do laudo.
+echo - Rajada ^(2 ou mais perdas seguidas^) piora ainda mais a
+echo   classificacao do que perdas espalhadas.
+echo - A UNICA perda que NAO reprova e a do proprio roteador
+echo   quando ele so "cansa" de responder o ping: se o gateway
+echo   perde MUITO, mas os destinos externos ^(cujo trafego
+echo   passa POR ele^) perdem pouco ou nada, entao o problema
+echo   foi so o roteador respondendo ping devagar ^(limite de
+echo   ICMP^), e NAO perda de trafego real. So nesse caso a
+echo   perda do gateway e relevada.
+echo - Em qualquer outra situacao, a perda conta contra o
+echo   resultado. Perda que aparece TAMBEM nos destinos
+echo   externos e perda de verdade, nunca "limite de ICMP".
+echo ---------------------------------------------------------
 echo.
 ) > "%LAUDO%\RESUMO.txt"
 
@@ -869,7 +919,7 @@ echo Write-Host ("RESUMO " + $alvo + " " + $ver + " : timeouts=" + $to + "  ping
 :: =========================================================
 set "PFALA=%TEMP%\falar_status.ps1"
 del "%PFALA%" >nul 2>&1
-echo param($pasta, $modo, $ipv6Conta, $temIpv6, $mins, $tec, $cli, $conx, $aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6, $lRot, $lInt, $lSrv, $lIp6, $lExt, $lExt6, $os, $apar, $satur) >>"%PFALA%"
+echo param($pasta, $modo, $ipv6Conta, $temIpv6, $mins, $tec, $cli, $conx, $aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6, $lRot, $lInt, $lSrv, $lIp6, $lExt, $lExt6, $os, $apar, $satur, $gwTxt, $macRot) >>"%PFALA%"
 echo if (-not $modo) { $modo = "curto" } >>"%PFALA%"
 echo try { Add-Type -AssemblyName System.Speech -ErrorAction SilentlyContinue } catch {} >>"%PFALA%"
 echo $voz = $null; try { $voz = New-Object System.Speech.Synthesis.SpeechSynthesizer } catch {} >>"%PFALA%"
@@ -937,6 +987,7 @@ echo $tg += "Aparelhos: " + $apar >>"%PFALA%"
 echo if ($satur -eq 'S') { $tg += "OBS METODO: speedtest/fast rodaram em loop. As amostras colhidas DENTRO de cada rodada foram descartadas da analise (marcadas [SAT] no log) - ping alto e perda por saturacao nao entram na conta. O veredito usa so os intervalos livres entre as rodadas." } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4 GHz com teste de velocidade - essa banda satura facil e disputa meio com vizinhos. Ping e perda sobem por isso, nao por defeito. Repetir em 5 GHz ou cabo." } >>"%PFALA%"
 echo $tg += "Conexao: " + $conx >>"%PFALA%"
+echo $tg += "Gateway: " + $gwTxt + "   MAC: " + $macRot >>"%PFALA%"
 echo $tg += "PC: " + $env:COMPUTERNAME + "   Data: " + (Get-Date -Format "dd/MM/yyyy HH:mm") >>"%PFALA%"
 echo $tg += "Duracao: " + $mins + " minutos" >>"%PFALA%"
 echo $tg += "" >>"%PFALA%"
@@ -1597,7 +1648,7 @@ if defined FASTEXE  for %%A in ("%FASTEXE%")  do taskkill /F /IM "%%~nxA" >nul 2
 echo Aguardando os arquivos de log serem liberados...
 timeout /t 3 /nobreak >nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%MINUTOS%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%MINUTOS%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
 
 if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%" "%APARELHOS%"
 
@@ -3158,6 +3209,34 @@ goto :eof
 >>"%CFG%" echo TG_TOKEN=%TG_TOKEN%
 >>"%CFG%" echo TG_CHAT=%TG_CHAT%
 >>"%CFG%" echo IA_KEY=%IA_KEY%
+goto :eof
+
+:: =========================================================
+:: OBTER_MAC_ARP - le a tabela ARP e pega o MAC do %GW%
+::   compara o 1o campo (IP) com o gateway e captura o 2o (MAC)
+:: =========================================================
+:OBTER_MAC_ARP
+for /f "tokens=1,2" %%a in ('arp -a 2^>nul') do (
+  if "%%a"=="%GW%" set "GW_MAC=%%b"
+)
+goto :eof
+
+:: =========================================================
+:: GW_POR_IPCONFIG - fallback: acha o Gateway Padrao no ipconfig
+::   pega o 2o campo das linhas com "Gateway" (PT e EN) e valida
+::   se e um IPv4; o 1o IPv4 valido vira o GW. Sem IP fixo.
+:: =========================================================
+:GW_POR_IPCONFIG
+for /f "tokens=2 delims=:" %%g in ('ipconfig ^| findstr /i /c:"Gateway"') do (
+  set "_gwtmp=%%g"
+  set "_gwtmp=!_gwtmp: =!"
+  if defined _gwtmp if not defined GW call :GW_VALIDA_IP "!_gwtmp!"
+)
+goto :eof
+
+:: %~1 = candidato a IP (validado com regex de IPv4)
+:GW_VALIDA_IP
+echo %~1| findstr /r /c:"^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >nul && set "GW=%~1"
 goto :eof
 
 :LOCALIZAR
