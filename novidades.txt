@@ -1,4 +1,4 @@
-NOVIDADES DA VERSAO 1043
+NOVIDADES DA VERSAO 1044
 
 [NOVO] MAC do roteador (Gateway) no laudo
  - Detecta o Gateway Padrao automaticamente (route print,
