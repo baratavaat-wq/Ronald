@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1047"
+set "VER=1048"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -207,7 +207,7 @@ set "FASTARGS="
 ::                   1600 Mbps no total.
 ::                   ou a palavra  perguntar  para o tecnico digitar.
 :: +=======================================================+
-set "SRV_ATIVAR=nao"
+set "SRV_ATIVAR=sim"
 set "SRV_PRECONFIG=sim"
 set "SRV_PREFERENCIA=ambos"
 set "SRV_URL_IPV4=http://SEU-IP:8080"
