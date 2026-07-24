@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1050"
+set "VER=1051"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -736,7 +736,7 @@ echo CLIENTE        : %CLIENTE%
 echo O.S.           : %OS_ID%
 echo APARELHOS      : %APARELHOS%
 echo CONEXAO        : %CONEXAO%
-echo DURACAO        : %MINUTOS% minutos
+echo DURACAO        : %MINUTOS% minutos ^(planejado^)
 echo COMPUTADOR     : %COMPUTERNAME%
 echo USUARIO        : %USERNAME%
 echo ROTEADOR       : %GW_TXT%
@@ -1397,7 +1397,7 @@ echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4
 echo $tg += "Conexao: " + $conx >>"%PFALA%"
 echo $tg += "Gateway: " + $gwTxt + "   MAC: " + $macRot >>"%PFALA%"
 echo $tg += "PC: " + $env:COMPUTERNAME + "   Data: " + (Get-Date -Format "dd/MM/yyyy HH:mm") >>"%PFALA%"
-echo $tg += "Duracao: " + $mins + " minutos" >>"%PFALA%"
+echo $tg += "Duracao: " + $mins >>"%PFALA%"
 echo $tg += "" >>"%PFALA%"
 echo $rel = @() >>"%PFALA%"
 echo $rel += "=========================================================" >>"%PFALA%"
@@ -1412,7 +1412,7 @@ echo if ($satur -eq 'S') { $rel += "OBS METODO ......: speedtest/fast rodaram em
 echo if ($satur -eq 'S' -and $conx -match '2\.4') { $rel += "OBS BANDA .......: Wi-Fi 2.4 GHz somado ao teste de velocidade. A banda de 2.4 GHz satura com facilidade e disputa o meio com vizinhos, micro-ondas e bluetooth: ping e perda sobem bastante durante o speedtest e isso NAO caracteriza defeito. Para avaliar o link, repita em 5 GHz ou no cabo, sem speedtest." } >>"%PFALA%"
 echo $rel += "COMPUTADOR ......: " + $env:COMPUTERNAME >>"%PFALA%"
 echo $rel += "USUARIO .........: " + $env:USERNAME >>"%PFALA%"
-echo $rel += "DURACAO DO TESTE : " + $mins + " minutos" >>"%PFALA%"
+echo $rel += "DURACAO DO TESTE : " + $mins >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo $rel += "RESULTADO POR ALVO" >>"%PFALA%"
@@ -1575,6 +1575,8 @@ echo $curto = $curto + "Sem perda real, com " + $totHi + " picos de ping." >>"%P
 echo [console]::beep(1200,250); [console]::beep(1600,250) >>"%PFALA%"
 echo } else { >>"%PFALA%"
 echo if ($pioresc -eq 0) { $curto = $curto + "Tudo excelente. Sem perda real e sem picos." } else { $curto = $curto + "Resultado geral: " + $ESC[$pioresc] + "." } >>"%PFALA%"
+echo [console]::beep(1500,150); [console]::beep(2000,350) >>"%PFALA%"
+echo } >>"%PFALA%"
 echo $refI = 1; if ($envA[1] -eq 0) { $refI = 0 } >>"%PFALA%"
 echo $scMed = $pmedA[$refI]; if ($scMed -lt 0) { $scMed = 0 } >>"%PFALA%"
 echo $scJit = $jitA[$refI]; if ($scJit -lt 0) { $scJit = 0 } >>"%PFALA%"
@@ -1588,8 +1590,6 @@ echo $score = [math]::Round($compPer + $compLat + $compJit + $compRaj) >>"%PFALA
 echo if ($score -lt 0) { $score = 0 }; if ($score -gt 100) { $score = 100 } >>"%PFALA%"
 echo if ($pioresc -ge 4) { if ($score -gt 40) { $score = 40 } } elseif ($pioresc -eq 3) { if ($score -gt 60) { $score = 60 } } elseif ($pioresc -eq 2) { if ($score -gt 75) { $score = 75 } } >>"%PFALA%"
 echo if ($score -ge 90) { $scLbl = "EXCELENTE" } elseif ($score -ge 75) { $scLbl = "BOM" } elseif ($score -ge 60) { $scLbl = "ACEITAVEL" } elseif ($score -ge 40) { $scLbl = "RUIM" } else { $scLbl = "CRITICO" } >>"%PFALA%"
-echo [console]::beep(1500,150); [console]::beep(2000,350) >>"%PFALA%"
-echo } >>"%PFALA%"
 echo $perdaLanB = $pctA[0] >>"%PFALA%"
 echo $perdaForaB = [math]::Max([math]::Max([math]::Max($pctA[1], $pctA[2]), [math]::Max($pctA[3], $pctA[4])), $pctA[5]) >>"%PFALA%"
 echo $perdaLan = 0; if ($clsA[0] -like "PROBLEMA*") { $perdaLan = $pctA[0] } >>"%PFALA%"
@@ -1968,6 +1968,9 @@ echo if (-not $segundos) { $segundos = 900 } >>"%PWAIT%"
 echo [Console]::TreatControlCAsInput = $true >>"%PWAIT%"
 echo $hb = Join-Path $env:TEMP 'lr_hb.flag' >>"%PWAIT%"
 echo $fim = (Get-Date).AddSeconds([int]$segundos) >>"%PWAIT%"
+echo $ini = Get-Date >>"%PWAIT%"
+echo $durFile = Join-Path $env:TEMP 'lr_dur.txt' >>"%PWAIT%"
+echo try { >>"%PWAIT%"
 echo while ((Get-Date) -lt $fim) { >>"%PWAIT%"
 echo try { Set-Content -Path $hb -Value ([string](Get-Date).Ticks) -ErrorAction SilentlyContinue } catch {} >>"%PWAIT%"
 echo $rest = [int][math]::Floor(($fim - (Get-Date)).TotalSeconds) >>"%PWAIT%"
@@ -1996,6 +1999,10 @@ echo if (($k.Modifiers -band [ConsoleModifiers]::Control) -and ($k.Key -eq 'C'))
 echo } >>"%PWAIT%"
 echo Start-Sleep -Milliseconds 80 >>"%PWAIT%"
 echo } >>"%PWAIT%"
+echo } >>"%PWAIT%"
+echo } finally { >>"%PWAIT%"
+echo $dec = [int][math]::Round(((Get-Date) - $ini).TotalSeconds) >>"%PWAIT%"
+echo try { [System.IO.File]::WriteAllText($durFile, [string]$dec) } catch {} >>"%PWAIT%"
 echo } >>"%PWAIT%"
 
 :: ABA 7 - LOOP SPEEDTEST
@@ -2368,6 +2375,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%PWAIT%" %QTD_PING% "%GW%" 
 :FINALIZAR
 cls
 echo Encerrando testes e gerando laudo tecnico...
+rem ---- duracao REAL do teste (le o que o contador PWAIT gravou) ----
+rem   se o tecnico apertar F e encerrar antes, o laudo mostra o tempo
+rem   que REALMENTE rodou, e nao o tempo pedido la no inicio.
+set "SEG_REAIS="
+if exist "%TEMP%\lr_dur.txt" set /p SEG_REAIS=<"%TEMP%\lr_dur.txt"
+if defined SEG_REAIS for /f "delims=0123456789" %%z in ("%SEG_REAIS%") do set "SEG_REAIS="
+if not defined SEG_REAIS set /a "SEG_REAIS=%QTD_PING%"
+set /a "MIN_REAIS=SEG_REAIS/60"
+set /a "SEG_RESTO=SEG_REAIS-(MIN_REAIS*60)"
+set "DUR_REAL=%MIN_REAIS% min %SEG_RESTO% s"
+del "%TEMP%\lr_dur.txt" >nul 2>&1
 :: 1) apaga o sinal de vida: cada aba de ping percebe e se encerra sozinha.
 ::    NAO usar taskkill por WINDOWTITLE: no Windows Terminal o titulo da
 ::    janela e o da aba ativa, e o /T derrubava a janela principal junto.
@@ -2393,7 +2411,7 @@ if defined FASTEXE  for %%A in ("%FASTEXE%")  do taskkill /F /IM "%%~nxA" >nul 2
 echo Aguardando os arquivos de log serem liberados...
 timeout /t 3 /nobreak >nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%MINUTOS%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
 
 if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%" "%APARELHOS%"
 
@@ -2401,7 +2419,7 @@ if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "
 echo.
 echo =========================================================================
 echo    FINALIZADO - Tecnico: %TECNICO%  -  Cliente: %CLIENTE%
-echo    Conexao: %CONEXAO%   -   %MINUTOS% MINUTOS DE TESTE
+echo    Conexao: %CONEXAO%   -   TESTE DE %DUR_REAL%
 echo =========================================================================
 echo   ALVO         PERDA    MIN      MEDIA    MAX      PICOS   CLASSIFICACAO
 echo   -------------------------------------------------------------------
