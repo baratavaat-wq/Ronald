@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1049"
+set "VER=1050"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -212,8 +212,8 @@ set "SRV_PRECONFIG=sim"
 set "SRV_PREFERENCIA=ambos"
 set "SRV_URL_IPV4=http://SEU-IP:8080"
 set "SRV_URL_IPV6=http://SEU-IP:8080"
-set "SRV_LOGIN=geral"
-set "SRV_SENHA=987654321"
+set "SRV_LOGIN="
+set "SRV_SENHA="
 set "SRV_VELOCIDADE=perguntar"
 set "SRV_VELOCIDADE_UP=perguntar"
 set "SRV_DIRECAO=perguntar"
@@ -967,6 +967,8 @@ echo Write-Output $fim >>"%PSRVLOG%"
 if /i "%SRV_PRECONFIG%"=="sim" goto ABA9_MONTA
 
 :ABA9_PERGUNTA
+:: marca que os dados vieram do teclado do tecnico, e nao do .ini
+set "SRV_DIGITOU=1"
 echo.
 echo   Deixe em branco (ENTER) o que nao for usar.
 set "RESP9="
@@ -1059,6 +1061,13 @@ echo   ABA 9 desligada nesta rodada.
 goto FIM_ABA9
 
 :ABA9_VEL
+:: login funcionou. Se o tecnico digitou os dados na mao,
+:: grava no velocidade.ini para a proxima visita ja vir pronto.
+if not defined SRV_DIGITOU goto ABA9_VEL_NAOSALVA
+set "VEL_ACAO=SALVAR"
+call :GRAVAR_CONFIG_VEL
+set "SRV_DIGITOU="
+:ABA9_VEL_NAOSALVA
 set "SRV_SUGD=%SRV_MAXDL%"
 if "%SRV_SUGD%"=="0" set "SRV_SUGD=%SRV_MAXUL%"
 set "SRV_SUGU=%SRV_MAXUL%"
@@ -4085,6 +4094,7 @@ goto :eof
 >>"%CFGVEL%" echo SRV_CONEX_UP=%SRV_CONEX_UP%
 echo.
 echo   -----------------------------------------------------
+if /i "%VEL_ACAO%"=="SALVAR" goto VEL_AVISO_SALVOU
 if /i "%VEL_ACAO%"=="MIGRAR" goto VEL_AVISO_MIGROU
 echo   ABA 9: criei o arquivo de configuracao da velocidade:
 echo   %CFGVEL%
@@ -4092,6 +4102,13 @@ echo.
 echo   La voce muda a velocidade, as conexoes ao mesmo tempo
 echo   e se download e upload rodam JUNTOS ou ALTERNADOS.
 goto VEL_AVISO_FIM
+:VEL_AVISO_SALVOU
+echo   ABA 9: os dados que voce digitou foram SALVOS em:
+echo   %CFGVEL%
+echo.
+echo   Na proxima visita a ABA 9 ja vem preenchida.
+goto VEL_AVISO_FIM
+
 :VEL_AVISO_MIGROU
 echo   ABA 9: o script agora esta na v%VER%, entao os dados do
 echo   servidor de teste foram REGRAVADOS com os valores desta
@@ -4102,7 +4119,7 @@ echo   O arquivo anterior foi guardado como:
 echo   velocidade.ini.bak
 :VEL_AVISO_FIM
 echo   -----------------------------------------------------
-timeout /t 4 >nul
+if /i "%VEL_ACAO%"=="SALVAR" (timeout /t 2 >nul) else (timeout /t 4 >nul)
 goto :eof
 
 :: =========================================================
