@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1046"
+set "VER=1047"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -143,7 +143,7 @@ set "FASTARGS="
 ::   (ou apague o .ini para ele ser criado de novo).
 ::
 ::   Testa a velocidade falando com o SEU servidor.py (o do zip).
-::   Nao usa Ookla nem Fast. O teste eh CONSTANTE: roda sem parar
+::   O teste eh CONSTANTE: roda sem parar
 ::   ate o tempo do laudo acabar.
 :: +=======================================================+
 ::   SRV_ATIVAR      sim = liga esta aba  /  nao = desliga (padrao)
@@ -207,13 +207,13 @@ set "FASTARGS="
 ::                   1600 Mbps no total.
 ::                   ou a palavra  perguntar  para o tecnico digitar.
 :: +=======================================================+
-set "SRV_ATIVAR=sim"
-set "SRV_PRECONFIG=nao"
+set "SRV_ATIVAR=nao"
+set "SRV_PRECONFIG=sim"
 set "SRV_PREFERENCIA=ambos"
 set "SRV_URL_IPV4=http://SEU-IP:8080"
 set "SRV_URL_IPV6=http://SEU-IP:8080"
-set "SRV_LOGIN="
-set "SRV_SENHA="
+set "SRV_LOGIN=geral"
+set "SRV_SENHA=987654321"
 set "SRV_VELOCIDADE=perguntar"
 set "SRV_VELOCIDADE_UP=perguntar"
 set "SRV_DIRECAO=perguntar"
@@ -900,6 +900,22 @@ set "SRV_MAXDL=0"
 set "SRV_MAXUL=0"
 set "SRV_MOTIVO="
 if /i not "%SRV_ATIVAR%"=="sim" goto FIM_ABA9
+
+:: pergunta ao tecnico se quer rodar a ABA 9 NESTA visita.
+::   S = segue normal   /   N = pula a etapa inteira
+color 0B
+echo.
+echo   -----------------------------------------------------
+echo   ABA 9 - TESTE DE VELOCIDADE NO SEU PROPRIO SERVIDOR
+echo   -----------------------------------------------------
+color 0A
+echo.
+echo   Mede download e upload falando com o servidor da
+echo   empresa. Nao usa Ookla nem Fast.
+echo.
+choice /c SN /n /m "  Rodar o teste no servidor proprio? [S/N]: "
+if errorlevel 2 goto ABA9_PULOU
+color 0A
 if /i not "%SRV_DIRECAO%"=="download" if /i not "%SRV_DIRECAO%"=="upload" if /i not "%SRV_DIRECAO%"=="ambos" if /i not "%SRV_DIRECAO%"=="perguntar" set "SRV_DIRECAO=perguntar"
 if /i not "%SRV_MODO%"=="alternado" if /i not "%SRV_MODO%"=="juntos" if /i not "%SRV_MODO%"=="perguntar" set "SRV_MODO=perguntar"
 echo %SRV_BLOCO%| findstr /r "^[1-9][0-9]*$" >nul || set "SRV_BLOCO=60"
@@ -948,12 +964,6 @@ echo $fim = "FALHA|" + $msg.Replace("|", "/") >>"%PSRVLOG%"
 echo } >>"%PSRVLOG%"
 echo Write-Output $fim >>"%PSRVLOG%"
 
-color 0B
-echo.
-echo   -----------------------------------------------------
-echo   ABA 9 - TESTE DE VELOCIDADE NO SEU PROPRIO SERVIDOR
-echo   -----------------------------------------------------
-color 0A
 if /i "%SRV_PRECONFIG%"=="sim" goto ABA9_MONTA
 
 :ABA9_PERGUNTA
@@ -1034,6 +1044,13 @@ color 0A
 choice /c CS /n /m "  [C]orrigir agora   [S]eguir sem a ABA 9: "
 if errorlevel 2 goto ABA9_DESISTE
 goto ABA9_PERGUNTA
+
+:ABA9_PULOU
+color 0A
+echo.
+echo   ABA 9 pulada a pedido do tecnico.
+set "SRV_OK="
+goto FIM_ABA9
 
 :ABA9_DESISTE
 color 0A
