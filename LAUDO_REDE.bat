@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1045"
+set "VER=1046"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -207,13 +207,13 @@ set "FASTARGS="
 ::                   1600 Mbps no total.
 ::                   ou a palavra  perguntar  para o tecnico digitar.
 :: +=======================================================+
-set "SRV_ATIVAR=nao"
-set "SRV_PRECONFIG=sim"
+set "SRV_ATIVAR=sim"
+set "SRV_PRECONFIG=nao"
 set "SRV_PREFERENCIA=ambos"
 set "SRV_URL_IPV4=http://SEU-IP:8080"
 set "SRV_URL_IPV6=http://SEU-IP:8080"
-set "SRV_LOGIN=geral"
-set "SRV_SENHA=987654321"
+set "SRV_LOGIN="
+set "SRV_SENHA="
 set "SRV_VELOCIDADE=perguntar"
 set "SRV_VELOCIDADE_UP=perguntar"
 set "SRV_DIRECAO=perguntar"
@@ -3941,44 +3941,101 @@ goto :eof
 goto :eof
 
 :: =========================================================
-:: SUB-ROTINA: CARREGAR / CRIAR VELOCIDADE.INI  (ABA 9)
-::   Mesmo esquema do servidor.py com o config/config.json:
-::     - 1a vez: nao existe arquivo -> cria com os valores de fabrica
-::       que estao no TOPO deste .bat e avisa onde ficou.
-::     - dai em diante: SEMPRE le do arquivo, e o que esta no topo
-::       do .bat vira so o valor de fabrica (nao manda mais nada).
-::   Vantagem: quando o script se atualizar pelo GitHub, os seus
-::   ajustes NAO se perdem - igual acontece com o config.ini.
+:: SUB-ROTINA: CARREGAR / CRIAR / MIGRAR VELOCIDADE.INI (ABA 9)
+::   Regra desta versao:
+::     - 1a vez: o arquivo nao existe -> cria com os valores de
+::       fabrica que estao no TOPO deste .bat.
+::     - MESMA versao: le do arquivo. Entre uma atualizacao e
+::       outra o tecnico pode editar o .ini a vontade que os
+::       ajustes dele valem.
+::     - versao DIFERENTE (o script se atualizou, ou o .ini e
+::       antigo e nem tem a linha INI_VER): a ATUALIZACAO MANDA.
+::       Todas as chaves da ABA 9 voltam para o valor do topo
+::       deste .bat e o arquivo e regravado. Antes disso o .ini
+::       antigo e copiado para velocidade.ini.bak.
+::   Motivo: o servidor de teste (endereco, login e senha) e o
+::   MESMO para todos os tecnicos, entao quem manda nele e o
+::   .bat publicado, e nao a copia local de cada PC.
 :: =========================================================
 :CARREGAR_CONFIG_VEL
 set "CFGVEL=%CFG_DIR%\velocidade.ini"
+set "VEL_CHAVES=SRV_ATIVAR SRV_PRECONFIG SRV_PREFERENCIA SRV_URL_IPV4 SRV_URL_IPV6 SRV_LOGIN SRV_SENHA SRV_VELOCIDADE SRV_VELOCIDADE_UP SRV_DIRECAO SRV_MODO SRV_BLOCO SRV_CONEX_DL SRV_CONEX_UP"
+
+:: guarda o valor DE FABRICA (topo do .bat) antes de ler o arquivo
+for %%K in (%VEL_CHAVES%) do call :VEL_GUARDA %%K
+
 if not exist "%CFGVEL%" goto CRIAR_CONFIG_VEL
-for /f "usebackq tokens=1,* delims==" %%a in ("%CFGVEL%") do (
-  if /i "%%a"=="SRV_ATIVAR" set "SRV_ATIVAR=%%b"
-  if /i "%%a"=="SRV_PRECONFIG" set "SRV_PRECONFIG=%%b"
-  if /i "%%a"=="SRV_PREFERENCIA" set "SRV_PREFERENCIA=%%b"
-  if /i "%%a"=="SRV_URL_IPV4" set "SRV_URL_IPV4=%%b"
-  if /i "%%a"=="SRV_URL_IPV6" set "SRV_URL_IPV6=%%b"
-  if /i "%%a"=="SRV_LOGIN" set "SRV_LOGIN=%%b"
-  if /i "%%a"=="SRV_SENHA" set "SRV_SENHA=%%b"
-  if /i "%%a"=="SRV_VELOCIDADE" set "SRV_VELOCIDADE=%%b"
-  if /i "%%a"=="SRV_VELOCIDADE_UP" set "SRV_VELOCIDADE_UP=%%b"
-  if /i "%%a"=="SRV_DIRECAO" set "SRV_DIRECAO=%%b"
-  if /i "%%a"=="SRV_MODO" set "SRV_MODO=%%b"
-  if /i "%%a"=="SRV_BLOCO" set "SRV_BLOCO=%%b"
-  if /i "%%a"=="SRV_CONEX_DL" set "SRV_CONEX_DL=%%b"
-  if /i "%%a"=="SRV_CONEX_UP" set "SRV_CONEX_UP=%%b"
-)
-goto :eof
+
+set "INI_VER=0"
+for /f "usebackq tokens=1,* delims==" %%a in ("%CFGVEL%") do call :VEL_SET "%%a" "%%b"
+
+:: o arquivo foi gravado por esta MESMA versao: respeita o que esta la
+if "%INI_VER%"=="%VER%" goto :eof
+
+:: versao diferente: a atualizacao manda. Tudo volta para o de fabrica.
+for %%K in (%VEL_CHAVES%) do call :VEL_RESTAURA %%K
+copy /y "%CFGVEL%" "%CFGVEL%.bak" >nul 2>&1
+set "VEL_ACAO=MIGRAR"
+goto GRAVAR_CONFIG_VEL
 
 :CRIAR_CONFIG_VEL
+set "VEL_ACAO=CRIAR"
+goto GRAVAR_CONFIG_VEL
+
+:: ---- guarda o valor de fabrica em FAB_<chave> ----
+:VEL_GUARDA
+call set "FAB_%~1=%%%~1%%"
+goto :eof
+
+:: ---- devolve o valor de fabrica para a chave ----
+:VEL_RESTAURA
+call set "%~1=%%FAB_%~1%%"
+goto :eof
+
+:: ---- aplica UMA linha do .ini, tirando espaco sobrando ----
+::   entra: %1 = nome da chave   %2 = valor
+::   chave desconhecida ou linha sem = : ignora em silencio
+:VEL_SET
+set "_K=%~1"
+set "_V=%~2"
+for /l %%i in (1,1,12) do if defined _K if "!_K:~-1!"==" " set "_K=!_K:~0,-1!"
+for /l %%i in (1,1,12) do if defined _K if "!_K:~0,1!"==" " set "_K=!_K:~1!"
+for /l %%i in (1,1,12) do if defined _V if "!_V:~-1!"==" " set "_V=!_V:~0,-1!"
+for /l %%i in (1,1,12) do if defined _V if "!_V:~0,1!"==" " set "_V=!_V:~1!"
+if not defined _K goto :eof
+if /i "!_K!"=="INI_VER" set "INI_VER=!_V!"
+if /i "!_K!"=="SRV_ATIVAR" set "SRV_ATIVAR=!_V!"
+if /i "!_K!"=="SRV_PRECONFIG" set "SRV_PRECONFIG=!_V!"
+if /i "!_K!"=="SRV_PREFERENCIA" set "SRV_PREFERENCIA=!_V!"
+if /i "!_K!"=="SRV_URL_IPV4" set "SRV_URL_IPV4=!_V!"
+if /i "!_K!"=="SRV_URL_IPV6" set "SRV_URL_IPV6=!_V!"
+if /i "!_K!"=="SRV_LOGIN" set "SRV_LOGIN=!_V!"
+if /i "!_K!"=="SRV_SENHA" set "SRV_SENHA=!_V!"
+if /i "!_K!"=="SRV_VELOCIDADE" set "SRV_VELOCIDADE=!_V!"
+if /i "!_K!"=="SRV_VELOCIDADE_UP" set "SRV_VELOCIDADE_UP=!_V!"
+if /i "!_K!"=="SRV_DIRECAO" set "SRV_DIRECAO=!_V!"
+if /i "!_K!"=="SRV_MODO" set "SRV_MODO=!_V!"
+if /i "!_K!"=="SRV_BLOCO" set "SRV_BLOCO=!_V!"
+if /i "!_K!"=="SRV_CONEX_DL" set "SRV_CONEX_DL=!_V!"
+if /i "!_K!"=="SRV_CONEX_UP" set "SRV_CONEX_UP=!_V!"
+goto :eof
+
+:: ---- grava o velocidade.ini (criacao e migracao usam este mesmo) ----
+:GRAVAR_CONFIG_VEL
 >"%CFGVEL%" echo ; =====================================================
 >>"%CFGVEL%" echo ; ABA 9 - TESTE DE VELOCIDADE NO SEU PROPRIO SERVIDOR
->>"%CFGVEL%" echo ; Criado sozinho na primeira execucao. Edite com o
->>"%CFGVEL%" echo ; Bloco de Notas e salve. Linha com ; na frente e so
->>"%CFGVEL%" echo ; comentario. Nao ponha aspas nos valores.
->>"%CFGVEL%" echo ; =====================================================
+>>"%CFGVEL%" echo ; Edite com o Bloco de Notas e salve. Linha com ; na
+>>"%CFGVEL%" echo ; frente e so comentario. Nao ponha aspas e nao deixe
+>>"%CFGVEL%" echo ; espaco antes nem depois do sinal de igual.
 >>"%CFGVEL%" echo ;
+>>"%CFGVEL%" echo ; ATENCAO - quando o LAUDO DE REDE for ATUALIZADO,
+>>"%CFGVEL%" echo ; este arquivo e REGRAVADO com os valores da versao
+>>"%CFGVEL%" echo ; nova, e a versao anterior fica salva ao lado como
+>>"%CFGVEL%" echo ; velocidade.ini.bak. Entre uma atualizacao e outra
+>>"%CFGVEL%" echo ; o que voce editar aqui vale normalmente.
+>>"%CFGVEL%" echo ;
+>>"%CFGVEL%" echo ; INI_VER ..........: versao do script que gravou este
+>>"%CFGVEL%" echo ;                     arquivo. NAO edite esta linha.
 >>"%CFGVEL%" echo ; SRV_ATIVAR .......: sim / nao
 >>"%CFGVEL%" echo ; SRV_PRECONFIG ....: sim = ja vem pronto (URL, login, senha)
 >>"%CFGVEL%" echo ; SRV_PREFERENCIA ..: ipv4 / ipv6 / ambos
@@ -3994,6 +4051,7 @@ goto :eof
 >>"%CFGVEL%" echo ; SRV_CONEX_UP .....: conexoes ao mesmo tempo no upload (1 a 8)
 >>"%CFGVEL%" echo ;                     a velocidade pedida e DIVIDIDA entre elas
 >>"%CFGVEL%" echo ;
+>>"%CFGVEL%" echo INI_VER=%VER%
 >>"%CFGVEL%" echo SRV_ATIVAR=%SRV_ATIVAR%
 >>"%CFGVEL%" echo SRV_PRECONFIG=%SRV_PRECONFIG%
 >>"%CFGVEL%" echo SRV_PREFERENCIA=%SRV_PREFERENCIA%
@@ -4010,12 +4068,22 @@ goto :eof
 >>"%CFGVEL%" echo SRV_CONEX_UP=%SRV_CONEX_UP%
 echo.
 echo   -----------------------------------------------------
+if /i "%VEL_ACAO%"=="MIGRAR" goto VEL_AVISO_MIGROU
 echo   ABA 9: criei o arquivo de configuracao da velocidade:
 echo   %CFGVEL%
 echo.
 echo   La voce muda a velocidade, as conexoes ao mesmo tempo
 echo   e se download e upload rodam JUNTOS ou ALTERNADOS.
-echo   Este arquivo NAO se perde quando o script atualizar.
+goto VEL_AVISO_FIM
+:VEL_AVISO_MIGROU
+echo   ABA 9: o script agora esta na v%VER%, entao os dados do
+echo   servidor de teste foram REGRAVADOS com os valores desta
+echo   versao:
+echo   %CFGVEL%
+echo.
+echo   O arquivo anterior foi guardado como:
+echo   velocidade.ini.bak
+:VEL_AVISO_FIM
 echo   -----------------------------------------------------
 timeout /t 4 >nul
 goto :eof
