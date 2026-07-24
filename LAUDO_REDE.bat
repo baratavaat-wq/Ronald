@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1044"
+set "VER=1045"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -127,6 +127,102 @@ set "FASTARGS="
 
 
 :: +=======================================================+
+::   ABA 9  -  SEU SERVIDOR PROPRIO DE VELOCIDADE
+::
+::   ATENCAO - ONDE MEXER AGORA:
+::   Os valores daqui de baixo sao so o PADRAO DE FABRICA.
+::   Na primeira execucao o script grava tudo isso em
+::       %ProgramData%\LaudoRede\velocidade.ini
+::   e a partir dai le SEMPRE de la. Entao para mudar velocidade,
+::   conexoes, juntos/alternado etc., edite o velocidade.ini com o
+::   Bloco de Notas - nao este arquivo.
+::   E o mesmo esquema do servidor.py com o config/config.json.
+::   Motivo: quando o script se atualiza pelo GitHub, ele se
+::   sobrescreve inteiro. O .ini fica de fora e os seus ajustes
+::   sobrevivem. Mexer aqui so adianta ANTES da primeira execucao
+::   (ou apague o .ini para ele ser criado de novo).
+::
+::   Testa a velocidade falando com o SEU servidor.py (o do zip).
+::   Nao usa Ookla nem Fast. O teste eh CONSTANTE: roda sem parar
+::   ate o tempo do laudo acabar.
+:: +=======================================================+
+::   SRV_ATIVAR      sim = liga esta aba  /  nao = desliga (padrao)
+::
+::   SRV_PRECONFIG   sim = ja vem pronto (URL, login e senha abaixo);
+::                         o tecnico so escolhe a velocidade.
+::                   nao = nao vem nada pronto; o tecnico digita a
+::                         URL, o login e a senha quando o script pedir.
+::
+::   SRV_PREFERENCIA ipv4  = usa so IPv4
+::                   ipv6  = usa so IPv6
+::                   ambos = tenta IPv4 e, se nao logar, cai pro IPv6
+::
+::   SRV_URL_IPV4    endereco por IPv4   ex http://200.10.1.5:8080
+::   SRV_URL_IPV6    endereco por IPv6   ex http://[2804:abc::1]:8080
+::                   deixe o texto SEU-IP se nao for usar aquele modo
+::
+::   SRV_LOGIN       usuario cadastrado no servidor
+::   SRV_SENHA       senha desse usuario
+::                   obs: em rede local ok, mas a senha aparece na tela;
+::                   use senha simples, sem simbolos estranhos.
+::
+::   SRV_VELOCIDADE  velocidade de DOWNLOAD em Mbps  ex 300,
+::                   ou a palavra  perguntar  para o tecnico digitar.
+::                   o servidor limita ao teto do login, nunca passa disso.
+::
+::   SRV_VELOCIDADE_UP  mesma coisa, mas para o UPLOAD. so eh usada
+::                   quando o upload entra no teste.
+::
+::   SRV_DIRECAO     download  = so baixando
+::                   upload    = so enviando
+::                   ambos     = usa os DOIS sentidos (veja SRV_MODO)
+::                   perguntar = baixa sempre e OFERECE o upload ao
+::                               tecnico na hora ("Testar UPLOAD tambem?")
+::
+::   SRV_MODO        so vale quando SRV_DIRECAO acaba em "ambos":
+::                   alternado = um bloco de download, um de upload, na
+::                               mesma janela. Cada sentido e medido
+::                               LIMPO - um nao rouba banda do outro.
+::                   juntos    = download e upload AO MESMO TEMPO, em
+::                               duas janelas. Mostra o link com trafego
+::                               nos dois sentidos: e assim que aparece
+::                               bufferbloat e ONU sem folga de upstream.
+::                               Cada sentido sai MENOR que sozinho -
+::                               isso e esperado, nao e defeito.
+::                   perguntar = o tecnico escolhe na hora.
+::
+::   SRV_BLOCO       segundos de cada volta no modo alternado (padrao 60)
+::
+::   SRV_CONEX_DL    conexoes ao mesmo tempo no DOWNLOAD (1 a 8)
+::   SRV_CONEX_UP    conexoes ao mesmo tempo no UPLOAD   (1 a 8)
+::                   1     = fluxo unico. E o mais parecido com baixar
+::                           ou enviar UM arquivo. Da menos que a banda
+::                           contratada quando a latencia e alta, e isso
+::                           e normal.
+::                   2 a 4 = uso geral, medida estavel. 4 e o padrao.
+::                   5 a 8 = link rapido ou latencia alta, onde uma
+::                           conexao so nao enche o cano.
+::                   A velocidade pedida e DIVIDIDA entre as conexoes:
+::                   4 conexoes de 400 Mbps sao 100 Mbps cada, e nao
+::                   1600 Mbps no total.
+::                   ou a palavra  perguntar  para o tecnico digitar.
+:: +=======================================================+
+set "SRV_ATIVAR=nao"
+set "SRV_PRECONFIG=sim"
+set "SRV_PREFERENCIA=ambos"
+set "SRV_URL_IPV4=http://SEU-IP:8080"
+set "SRV_URL_IPV6=http://SEU-IP:8080"
+set "SRV_LOGIN=geral"
+set "SRV_SENHA=987654321"
+set "SRV_VELOCIDADE=perguntar"
+set "SRV_VELOCIDADE_UP=perguntar"
+set "SRV_DIRECAO=perguntar"
+set "SRV_MODO=perguntar"
+set "SRV_BLOCO=60"
+set "SRV_CONEX_DL=4"
+set "SRV_CONEX_UP=4"
+
+:: +=======================================================+
 ::   ABA PRINCIPAL  -  cronometro, voz e veredito
 ::   TEMPO : o script PERGUNTA os MINUTOS ao rodar.
 ::           Abaixo so o valor PADRAO (ao dar ENTER)
@@ -149,6 +245,7 @@ if not defined STAMP set "STAMP=sem_data"
 
 call :CHECAR_ATUALIZACAO
 call :CARREGAR_CONFIG
+call :CARREGAR_CONFIG_VEL
 call :VERIFICAR_CHAVES
 call :GRAVAR_BASE
 echo.
@@ -791,6 +888,291 @@ timeout /t 3 >nul
 :FIM_DOIS
 echo.
 
+:: =========================================================
+:: ABA 9 - SERVIDOR PROPRIO: pergunta o que falta e testa o login
+::   - so roda se SRV_ATIVAR=sim
+::   - se o login falhar, o tecnico escolhe o que fazer
+:: =========================================================
+set "SRV_OK="
+set "SRV_URL="
+set "SRV_MBPS="
+set "SRV_MAXDL=0"
+set "SRV_MAXUL=0"
+set "SRV_MOTIVO="
+if /i not "%SRV_ATIVAR%"=="sim" goto FIM_ABA9
+if /i not "%SRV_DIRECAO%"=="download" if /i not "%SRV_DIRECAO%"=="upload" if /i not "%SRV_DIRECAO%"=="ambos" if /i not "%SRV_DIRECAO%"=="perguntar" set "SRV_DIRECAO=perguntar"
+if /i not "%SRV_MODO%"=="alternado" if /i not "%SRV_MODO%"=="juntos" if /i not "%SRV_MODO%"=="perguntar" set "SRV_MODO=perguntar"
+echo %SRV_BLOCO%| findstr /r "^[1-9][0-9]*$" >nul || set "SRV_BLOCO=60"
+if /i not "%SRV_CONEX_DL%"=="perguntar" call :SRV_LIMPA_CONEX SRV_CONEX_DL
+if /i not "%SRV_CONEX_UP%"=="perguntar" call :SRV_LIMPA_CONEX SRV_CONEX_UP
+
+:: validador de login (srv_login.ps1)
+set "PSRVLOG=%TEMP%\srv_login.ps1"
+del "%PSRVLOG%" >nul 2>&1
+echo param($base, $usuario, $senha) >>"%PSRVLOG%"
+echo $ErrorActionPreference = "SilentlyContinue" >>"%PSRVLOG%"
+echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PSRVLOG%"
+echo [Net.ServicePointManager]::DefaultConnectionLimit = 20 >>"%PSRVLOG%"
+echo Add-Type -AssemblyName System.Net.Http >>"%PSRVLOG%"
+echo $base = ([string]$base).TrimEnd("/") >>"%PSRVLOG%"
+echo $fim = "FALHA|erro desconhecido" >>"%PSRVLOG%"
+echo try { >>"%PSRVLOG%"
+echo $h = New-Object System.Net.Http.HttpClientHandler >>"%PSRVLOG%"
+echo $h.AllowAutoRedirect = $false >>"%PSRVLOG%"
+echo $h.UseCookies = $true >>"%PSRVLOG%"
+echo $h.CookieContainer = New-Object System.Net.CookieContainer >>"%PSRVLOG%"
+echo $cli = New-Object System.Net.Http.HttpClient($h) >>"%PSRVLOG%"
+echo $cli.Timeout = [TimeSpan]::FromSeconds(12) >>"%PSRVLOG%"
+echo $corpo = "username=" + [uri]::EscapeDataString([string]$usuario) + "&password=" + [uri]::EscapeDataString([string]$senha) >>"%PSRVLOG%"
+echo $sc = New-Object System.Net.Http.StringContent($corpo, [System.Text.Encoding]::UTF8, "application/x-www-form-urlencoded") >>"%PSRVLOG%"
+echo $r = $cli.PostAsync(($base + "/login"), $sc).Result >>"%PSRVLOG%"
+echo $tem = $false >>"%PSRVLOG%"
+echo foreach ($c in $h.CookieContainer.GetCookies([Uri]$base)) { if ($c.Name -eq "sid") { $tem = $true } } >>"%PSRVLOG%"
+echo if ($tem) { >>"%PSRVLOG%"
+echo $r2 = $cli.GetAsync(($base + "/test")).Result >>"%PSRVLOG%"
+echo if ([int]$r2.StatusCode -eq 200) { >>"%PSRVLOG%"
+echo $pg = [string]$r2.Content.ReadAsStringAsync().Result >>"%PSRVLOG%"
+echo $dl = 0 >>"%PSRVLOG%"
+echo $ul = 0 >>"%PSRVLOG%"
+echo $m1 = [regex]::Match($pg, "download ate <b>([0-9]+) Mbps") >>"%PSRVLOG%"
+echo if ($m1.Success) { $dl = [int]$m1.Groups[1].Value } >>"%PSRVLOG%"
+echo $m2 = [regex]::Match($pg, "upload ate <b>([0-9]+) Mbps") >>"%PSRVLOG%"
+echo if ($m2.Success) { $ul = [int]$m2.Groups[1].Value } >>"%PSRVLOG%"
+echo if ($dl -le 0 -and $ul -le 0) { $fim = "FALHA|este login nao tem limite de velocidade definido no painel" } else { $fim = "OK|" + [string]$dl + "|" + [string]$ul } >>"%PSRVLOG%"
+echo } else { $fim = "FALHA|o servidor respondeu HTTP " + [string][int]$r2.StatusCode + " na pagina de teste" } >>"%PSRVLOG%"
+echo } else { $fim = "FALHA|usuario ou senha invalidos, ou usuario bloqueado" } >>"%PSRVLOG%"
+echo } catch { >>"%PSRVLOG%"
+echo $msg = [string]$_.Exception.Message >>"%PSRVLOG%"
+echo if ($_.Exception.InnerException) { $msg = [string]$_.Exception.InnerException.Message } >>"%PSRVLOG%"
+echo $fim = "FALHA|" + $msg.Replace("|", "/") >>"%PSRVLOG%"
+echo } >>"%PSRVLOG%"
+echo Write-Output $fim >>"%PSRVLOG%"
+
+color 0B
+echo.
+echo   -----------------------------------------------------
+echo   ABA 9 - TESTE DE VELOCIDADE NO SEU PROPRIO SERVIDOR
+echo   -----------------------------------------------------
+color 0A
+if /i "%SRV_PRECONFIG%"=="sim" goto ABA9_MONTA
+
+:ABA9_PERGUNTA
+echo.
+echo   Deixe em branco (ENTER) o que nao for usar.
+set "RESP9="
+set "SRV_URL_IPV4="
+set /p "RESP9=  URL IPv4  (ex http://200.10.1.5:8080): "
+if defined RESP9 set "SRV_URL_IPV4=%RESP9:"=%"
+set "RESP9="
+set "SRV_URL_IPV6="
+set /p "RESP9=  URL IPv6  (ex http://[2804:abc::1]:8080): "
+if defined RESP9 set "SRV_URL_IPV6=%RESP9:"=%"
+set "RESP9="
+set /p "RESP9=  Usuario do servidor: "
+if defined RESP9 set "SRV_LOGIN=%RESP9:"=%"
+set "RESP9="
+set /p "RESP9=  Senha: "
+if defined RESP9 set "SRV_SENHA=%RESP9:"=%"
+
+:ABA9_MONTA
+set "SRV_T1="
+set "SRV_T2="
+if /i "%SRV_PREFERENCIA%"=="ipv4" set "SRV_T1=%SRV_URL_IPV4%"
+if /i "%SRV_PREFERENCIA%"=="ipv6" set "SRV_T1=%SRV_URL_IPV6%"
+if /i "%SRV_PREFERENCIA%"=="ambos" set "SRV_T1=%SRV_URL_IPV4%"
+if /i "%SRV_PREFERENCIA%"=="ambos" set "SRV_T2=%SRV_URL_IPV6%"
+:: joga fora o endereco de exemplo (SEU-IP / SEU-IPV6)
+if defined SRV_T1 set "SRV_X=%SRV_T1:SEU-IP=%"
+if defined SRV_T1 if not "%SRV_X%"=="%SRV_T1%" set "SRV_T1="
+if defined SRV_T2 set "SRV_X=%SRV_T2:SEU-IP=%"
+if defined SRV_T2 if not "%SRV_X%"=="%SRV_T2%" set "SRV_T2="
+if not defined SRV_T1 if defined SRV_T2 set "SRV_T1=%SRV_T2%"
+if not defined SRV_T1 goto ABA9_FALTA_URL
+if "%SRV_T1%"=="%SRV_T2%" set "SRV_T2="
+if not defined SRV_LOGIN goto ABA9_FALTA_LOGIN
+if not defined SRV_SENHA goto ABA9_FALTA_LOGIN
+
+:ABA9_TESTA
+set "SRV_OK="
+echo.
+call :ABA9_LOGIN "%SRV_T1%"
+if not defined SRV_OK if defined SRV_T2 call :ABA9_LOGIN "%SRV_T2%"
+if defined SRV_OK goto ABA9_VEL
+color 0E
+echo.
+echo   -----------------------------------------------------
+echo   A ABA 9 nao conseguiu falar com o seu servidor.
+echo   Motivo: %SRV_MOTIVO%
+echo.
+echo   Confira: o servidor.py esta ligado? a porta 8080 esta
+echo   liberada no firewall? o usuario/senha estao certos?
+echo   -----------------------------------------------------
+choice /c TCS /n /m "  [T]entar de novo   [C]orrigir dados   [S]eguir sem a ABA 9: "
+if errorlevel 3 goto ABA9_DESISTE
+if errorlevel 2 goto ABA9_CORRIGE
+color 0A
+goto ABA9_TESTA
+
+:ABA9_CORRIGE
+color 0A
+goto ABA9_PERGUNTA
+
+:ABA9_FALTA_URL
+color 0E
+echo.
+echo   [ABA 9] Falta o endereco do servidor.
+color 0A
+choice /c CS /n /m "  [C]orrigir agora   [S]eguir sem a ABA 9: "
+if errorlevel 2 goto ABA9_DESISTE
+goto ABA9_PERGUNTA
+
+:ABA9_FALTA_LOGIN
+color 0E
+echo.
+echo   [ABA 9] Falta o usuario ou a senha do servidor.
+color 0A
+choice /c CS /n /m "  [C]orrigir agora   [S]eguir sem a ABA 9: "
+if errorlevel 2 goto ABA9_DESISTE
+goto ABA9_PERGUNTA
+
+:ABA9_DESISTE
+color 0A
+set "SRV_OK="
+echo   ABA 9 desligada nesta rodada.
+goto FIM_ABA9
+
+:ABA9_VEL
+set "SRV_SUGD=%SRV_MAXDL%"
+if "%SRV_SUGD%"=="0" set "SRV_SUGD=%SRV_MAXUL%"
+set "SRV_SUGU=%SRV_MAXUL%"
+if "%SRV_SUGU%"=="0" set "SRV_SUGU=%SRV_MAXDL%"
+set "SRV_MBPS="
+set "SRV_MBPS_UP="
+:: login sem teto de um dos lados: nem oferece aquele lado
+if "%SRV_MAXDL%"=="0" set "SRV_DIRECAO=upload"
+if "%SRV_MAXUL%"=="0" if /i not "%SRV_DIRECAO%"=="upload" set "SRV_DIRECAO=download"
+if /i "%SRV_DIRECAO%"=="upload" goto ABA9_VEL_UP
+
+:: ---- velocidade de DOWNLOAD ----
+if /i "%SRV_VELOCIDADE%"=="perguntar" goto ABA9_VELD_PERG
+set "SRV_MBPS=%SRV_VELOCIDADE%"
+echo %SRV_MBPS%| findstr /r "^[1-9][0-9]*$" >nul || set "SRV_MBPS=%SRV_SUGD%"
+goto ABA9_VELD_OK
+
+:ABA9_VELD_PERG
+echo.
+echo   Velocidade de DOWNLOAD a pedir, em Mbps.
+echo   Teto do login %SRV_LOGIN%: %SRV_MAXDL% Mbps de download.
+echo   O servidor nunca passa do teto, mesmo pedindo mais.
+set "RESP9="
+set /p "RESP9=  Download em Mbps (ENTER = %SRV_SUGD%): "
+if not defined RESP9 set "RESP9=%SRV_SUGD%"
+echo %RESP9%| findstr /r "^[1-9][0-9]*$" >nul || goto ABA9_VELD_PERG
+set "SRV_MBPS=%RESP9%"
+
+:ABA9_VELD_OK
+:: ---- conexoes ao mesmo tempo no DOWNLOAD ----
+if /i not "%SRV_CONEX_DL%"=="perguntar" goto ABA9_CXD_OK
+:ABA9_CXD_PERG
+echo.
+echo   Conexoes ao mesmo tempo no DOWNLOAD (1 a 8).
+echo   1 = fluxo unico (parecido com baixar um arquivo so)
+echo   4 = padrao, medida mais estavel
+echo   A velocidade pedida e dividida entre elas.
+set "RESP9="
+set /p "RESP9=  Conexoes no download (ENTER = 4): "
+if not defined RESP9 set "RESP9=4"
+echo %RESP9%| findstr /r "^[1-8]$" >nul || goto ABA9_CXD_PERG
+set "SRV_CONEX_DL=%RESP9%"
+:ABA9_CXD_OK
+
+:: ---- oferta do upload (so quando SRV_DIRECAO=perguntar) ----
+if /i not "%SRV_DIRECAO%"=="perguntar" goto ABA9_VEL_UP
+echo.
+echo   O upload pode entrar junto com o download ou alternando com ele.
+choice /c SN /n /m "  Testar UPLOAD tambem? [S]im / [N]ao: "
+if errorlevel 2 goto ABA9_SO_DOWN
+set "SRV_DIRECAO=ambos"
+goto ABA9_VEL_UP
+
+:ABA9_SO_DOWN
+set "SRV_DIRECAO=download"
+goto ABA9_VEL_OK
+
+:ABA9_VEL_UP
+:: ---- velocidade de UPLOAD ----
+if /i "%SRV_DIRECAO%"=="download" goto ABA9_VEL_OK
+if /i "%SRV_VELOCIDADE_UP%"=="perguntar" goto ABA9_VELU_PERG
+set "SRV_MBPS_UP=%SRV_VELOCIDADE_UP%"
+echo %SRV_MBPS_UP%| findstr /r "^[1-9][0-9]*$" >nul || set "SRV_MBPS_UP=%SRV_SUGU%"
+goto ABA9_VEL_OK
+
+:ABA9_VELU_PERG
+echo.
+echo   Velocidade de UPLOAD a pedir, em Mbps.
+echo   Teto do login %SRV_LOGIN%: %SRV_MAXUL% Mbps de upload.
+set "RESP9="
+set /p "RESP9=  Upload em Mbps (ENTER = %SRV_SUGU%): "
+if not defined RESP9 set "RESP9=%SRV_SUGU%"
+echo %RESP9%| findstr /r "^[1-9][0-9]*$" >nul || goto ABA9_VELU_PERG
+set "SRV_MBPS_UP=%RESP9%"
+
+:ABA9_CXU
+:: ---- conexoes ao mesmo tempo no UPLOAD ----
+if /i not "%SRV_CONEX_UP%"=="perguntar" goto ABA9_CXU_OK
+:ABA9_CXU_PERG
+echo.
+echo   Conexoes ao mesmo tempo no UPLOAD (1 a 8).
+echo   1 = fluxo unico (parecido com enviar um arquivo so)
+echo   4 = padrao, medida mais estavel
+set "RESP9="
+set /p "RESP9=  Conexoes no upload (ENTER = 4): "
+if not defined RESP9 set "RESP9=4"
+echo %RESP9%| findstr /r "^[1-8]$" >nul || goto ABA9_CXU_PERG
+set "SRV_CONEX_UP=%RESP9%"
+:ABA9_CXU_OK
+
+:: ---- como rodar os dois sentidos (so quando acabou em "ambos") ----
+if /i not "%SRV_DIRECAO%"=="ambos" goto ABA9_VEL_OK
+if /i not "%SRV_MODO%"=="perguntar" goto ABA9_VEL_OK
+echo.
+echo   Como rodar download e upload?
+echo.
+echo   [A] ALTERNADO - um de cada vez, %SRV_BLOCO%s de cada, numa janela so.
+echo       Mede cada sentido LIMPO: um nao rouba banda do outro.
+echo       Use para saber a banda real de cada lado.
+echo.
+echo   [J] JUNTOS - os dois ao mesmo tempo, em duas janelas.
+echo       Mostra o link com trafego nos dois sentidos: e assim que
+echo       aparece bufferbloat e ONU sem folga de upstream.
+echo       Os numeros saem MENORES que sozinhos - isso e esperado.
+echo.
+choice /c AJ /n /m "  Escolha [A]lternado / [J]untos: "
+if errorlevel 2 (set "SRV_MODO=juntos") else (set "SRV_MODO=alternado")
+
+:ABA9_VEL_OK
+if not defined SRV_MBPS set "SRV_MBPS=%SRV_SUGD%"
+if not defined SRV_MBPS_UP set "SRV_MBPS_UP=%SRV_SUGU%"
+echo.
+if /i "%SRV_MODO%"=="perguntar" set "SRV_MODO=alternado"
+if /i "%SRV_DIRECAO%"=="download" echo   [OK] ABA 9 pronta: %SRV_URL%  -  download %SRV_MBPS% Mbps em %SRV_CONEX_DL% conexao(oes)
+if /i "%SRV_DIRECAO%"=="upload" echo   [OK] ABA 9 pronta: %SRV_URL%  -  upload %SRV_MBPS_UP% Mbps em %SRV_CONEX_UP% conexao(oes)
+if /i "%SRV_DIRECAO%"=="ambos" echo   [OK] ABA 9 pronta: %SRV_URL%  -  download %SRV_MBPS% Mbps / %SRV_CONEX_DL% cx  +  upload %SRV_MBPS_UP% Mbps / %SRV_CONEX_UP% cx
+if /i "%SRV_DIRECAO%"=="ambos" if /i "%SRV_MODO%"=="juntos" echo        modo JUNTOS: os dois ao mesmo tempo, em duas janelas.
+if /i "%SRV_DIRECAO%"=="ambos" if /i "%SRV_MODO%"=="alternado" echo        modo ALTERNADO: %SRV_BLOCO%s de download, %SRV_BLOCO%s de upload, numa janela.
+set "SRV_AVISO="
+if /i "%USAR_SPEED%"=="S" set "SRV_AVISO=1"
+if /i "%USAR_FAST%"=="S" set "SRV_AVISO=1"
+if not defined SRV_AVISO goto FIM_ABA9
+color 0E
+echo.
+echo   [ATENCAO] ABA 9 junto com Speedtest/Fast: os testes disputam
+echo   a mesma banda e todas as medicoes saem menores que o real.
+color 0A
+timeout /t 3 >nul
+
+:FIM_ABA9
+
 :: LOCALIZA OS EXECUTAVEIS (so os que o tecnico quer usar)
 set "SPEEDEXE="
 set "FASTEXE="
@@ -814,7 +1196,7 @@ if defined FASTEXE set "SATURA=S"
 set "MOTIVO_SEM_SPEED=escolha do tecnico"
 if /i "%USAR_SPEED%"=="S" if not defined SPEEDEXE set "MOTIVO_SEM_SPEED=programa nao encontrado no disco"
 if /i "%USAR_FAST%"=="S" if not defined FASTEXE set "MOTIVO_SEM_SPEED=programa nao encontrado no disco"
-if /i "%SATURA%"=="N" (
+if /i "%SATURA%"=="N" if not defined SRV_OK (
   color 0E
   echo.
   echo   -----------------------------------------------------
@@ -1395,6 +1777,44 @@ echo $rel += "  O ping do Windows tem resolucao de 1 ms: em enlace de fibra muit
 echo $rel += "  rapido a latencia real pode ser menor do que o exibido." >>"%PFALA%"
 echo $rel += "  Para medida com valor contratual, usar TWAMP ou iperf3." >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
+echo $vDl = New-Object System.Collections.ArrayList >>"%PFALA%"
+echo $vUp = New-Object System.Collections.ArrayList >>"%PFALA%"
+echo foreach ($nomeVel in @("servidor_speed.txt","servidor_speed_up.txt")) { >>"%PFALA%"
+echo $arqVel = Join-Path $pasta $nomeVel >>"%PFALA%"
+echo if (Test-Path $arqVel) { >>"%PFALA%"
+echo foreach ($linhaVel in (Get-Content $arqVel)) { >>"%PFALA%"
+echo $tv = [string]$linhaVel >>"%PFALA%"
+echo if ($tv -match "DOWNLOAD encerrado: media ([0-9]+[.,][0-9]+)") { [void]$vDl.Add([double]($Matches[1] -replace ",", ".")) } >>"%PFALA%"
+echo if ($tv -match "UPLOAD encerrado: media ([0-9]+[.,][0-9]+)") { [void]$vUp.Add([double]($Matches[1] -replace ",", ".")) } >>"%PFALA%"
+echo } >>"%PFALA%"
+echo } >>"%PFALA%"
+echo } >>"%PFALA%"
+echo if ($vDl.Count -gt 0 -or $vUp.Count -gt 0) { >>"%PFALA%"
+echo $rel += "---------------------------------------------------------" >>"%PFALA%"
+echo $rel += "VELOCIDADE NO SERVIDOR PROPRIO (ABA 9)" >>"%PFALA%"
+echo $rel += "---------------------------------------------------------" >>"%PFALA%"
+echo $rel += "  Medido contra o servidor do provedor, sem passar por" >>"%PFALA%"
+echo $rel += "  Ookla nem Fast. Cada ciclo abaixo e uma volta completa." >>"%PFALA%"
+echo foreach ($parVel in @(@("DOWNLOAD", $vDl), @("UPLOAD  ", $vUp))) { >>"%PFALA%"
+echo $rotuloVel = $parVel[0] >>"%PFALA%"
+echo $listaVel = $parVel[1] >>"%PFALA%"
+echo if ($listaVel.Count -gt 0) { >>"%PFALA%"
+echo $somaVel = 0.0 >>"%PFALA%"
+echo $maxVel = 0.0 >>"%PFALA%"
+echo $minVel = 999999.0 >>"%PFALA%"
+echo foreach ($xv in $listaVel) { >>"%PFALA%"
+echo $somaVel = $somaVel + $xv >>"%PFALA%"
+echo if ($xv -gt $maxVel) { $maxVel = $xv } >>"%PFALA%"
+echo if ($xv -lt $minVel) { $minVel = $xv } >>"%PFALA%"
+echo } >>"%PFALA%"
+echo $medVel = $somaVel / $listaVel.Count >>"%PFALA%"
+echo $rel += ("  " + $rotuloVel + " : media " + ("{0:0.0}" -f $medVel) + " Mbps   melhor " + ("{0:0.0}" -f $maxVel) + "   pior " + ("{0:0.0}" -f $minVel) + "   (" + [string]$listaVel.Count + " ciclos)") >>"%PFALA%"
+echo $tg += ($rotuloVel.Trim() + " no servidor proprio: media " + ("{0:0.0}" -f $medVel) + " Mbps") >>"%PFALA%"
+echo } >>"%PFALA%"
+echo } >>"%PFALA%"
+echo if ($vDl.Count -eq 0) { $rel += "  DOWNLOAD : nao mediu neste laudo." } >>"%PFALA%"
+echo if ($vUp.Count -eq 0) { $rel += "  UPLOAD   : nao mediu neste laudo." } >>"%PFALA%"
+echo } >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo $rel += "COMO LER O SCORE (0 a 100)" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
@@ -1592,6 +2012,305 @@ if defined FASTEXE (
   start "LAUDO_FAST" cmd /k "%TEMP%\fast_loop.bat"
 )
 
+:: ABA 9 - LOOP DO SERVIDOR PROPRIO (constante, sem marcar [SAT])
+if not defined SRV_OK goto ABA9_SEM_JANELA
+set "PSRV=%TEMP%\srv_speed.ps1"
+del "%PSRV%" >nul 2>&1
+echo param($base, $usuario, $senha, $mbps, $mbpsUp, $direcao, $logf, $cxDl, $cxUp, $segBloco) >>"%PSRV%"
+echo $ErrorActionPreference = "SilentlyContinue" >>"%PSRV%"
+echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PSRV%"
+echo [Net.ServicePointManager]::DefaultConnectionLimit = 64 >>"%PSRV%"
+echo [Net.ServicePointManager]::Expect100Continue = $false >>"%PSRV%"
+echo Add-Type -AssemblyName System.Net.Http >>"%PSRV%"
+echo $base = ([string]$base).TrimEnd("/") >>"%PSRV%"
+echo $alvo = [int]$mbps >>"%PSRV%"
+echo $alvoUp = [int]$mbpsUp >>"%PSRV%"
+echo if ($alvoUp -le 0) { $alvoUp = $alvo } >>"%PSRV%"
+echo $dirCfg = ([string]$direcao).ToLower() >>"%PSRV%"
+echo $conxD = [int]$cxDl >>"%PSRV%"
+echo if ($conxD -lt 1) { $conxD = 1 } >>"%PSRV%"
+echo if ($conxD -gt 8) { $conxD = 8 } >>"%PSRV%"
+echo $conxU = [int]$cxUp >>"%PSRV%"
+echo if ($conxU -lt 1) { $conxU = 1 } >>"%PSRV%"
+echo if ($conxU -gt 8) { $conxU = 8 } >>"%PSRV%"
+echo $bloco = [int]$segBloco >>"%PSRV%"
+echo if ($bloco -lt 5) { $bloco = 60 } >>"%PSRV%"
+echo $q = [char]34 >>"%PSRV%"
+echo $hbArq = Join-Path $env:TEMP "lr_hb.flag" >>"%PSRV%"
+echo $viuHb = $false >>"%PSRV%"
+echo $efeD = 0.0 >>"%PSRV%"
+echo $efeU = 0.0 >>"%PSRV%"
+echo $avisou = "" >>"%PSRV%"
+echo $segD = 0.0 >>"%PSRV%"
+echo $bytesD = [long]0 >>"%PSRV%"
+echo $melhorD = 0.0 >>"%PSRV%"
+echo $piorD = 0.0 >>"%PSRV%"
+echo $segU = 0.0 >>"%PSRV%"
+echo $bytesU = [long]0 >>"%PSRV%"
+echo $melhorU = 0.0 >>"%PSRV%"
+echo $piorU = 0.0 >>"%PSRV%"
+echo $h = New-Object System.Net.Http.HttpClientHandler >>"%PSRV%"
+echo $h.AllowAutoRedirect = $false >>"%PSRV%"
+echo $h.UseCookies = $true >>"%PSRV%"
+echo $h.CookieContainer = New-Object System.Net.CookieContainer >>"%PSRV%"
+echo $h.MaxConnectionsPerServer = 64 >>"%PSRV%"
+echo $cli = New-Object System.Net.Http.HttpClient($h) >>"%PSRV%"
+echo $cli.Timeout = [TimeSpan]::FromSeconds(30) >>"%PSRV%"
+echo function Vivo { >>"%PSRV%"
+echo if (-not $script:viuHb) { >>"%PSRV%"
+echo if (Test-Path $script:hbArq) { $script:viuHb = $true } >>"%PSRV%"
+echo return $true >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if (-not (Test-Path $script:hbArq)) { return $false } >>"%PSRV%"
+echo $idade = ((Get-Date) - (Get-Item $script:hbArq).LastWriteTime).TotalSeconds >>"%PSRV%"
+echo if ($idade -gt 90) { return $false } >>"%PSRV%"
+echo return $true >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Anota($txt) { >>"%PSRV%"
+echo Write-Host $txt >>"%PSRV%"
+echo try { Add-Content -Path $script:logf -Value $txt } catch { } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Fmt($v) { >>"%PSRV%"
+echo return ("{0:0.0}" -f [double]$v) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Hora { >>"%PSRV%"
+echo return ("[" + (Get-Date).ToString("HH:mm:ss") + "]  ") >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Entrar { >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $corpo = "username=" + [uri]::EscapeDataString([string]$usuario) + "&password=" + [uri]::EscapeDataString([string]$senha) >>"%PSRV%"
+echo $sc = New-Object System.Net.Http.StringContent($corpo, [System.Text.Encoding]::UTF8, "application/x-www-form-urlencoded") >>"%PSRV%"
+echo $r = $cli.PostAsync(($base + "/login"), $sc).Result >>"%PSRV%"
+echo foreach ($c in $h.CookieContainer.GetCookies([Uri]$base)) { if ($c.Name -eq "sid") { return $true } } >>"%PSRV%"
+echo } catch { } >>"%PSRV%"
+echo return $false >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Comecar($dir) { >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $pedido = $alvo >>"%PSRV%"
+echo if ($dir -eq "upload") { $pedido = $alvoUp } >>"%PSRV%"
+echo $j = "{" + $q + "direction" + $q + ":" + $q + $dir + $q + "," + $q + "mbps" + $q + ":" + [string]$pedido + "}" >>"%PSRV%"
+echo $sc = New-Object System.Net.Http.StringContent($j, [System.Text.Encoding]::UTF8, "application/json") >>"%PSRV%"
+echo $r = $cli.PostAsync(($base + "/test/start"), $sc).Result >>"%PSRV%"
+echo $txt = [string]$r.Content.ReadAsStringAsync().Result >>"%PSRV%"
+echo $o = ConvertFrom-Json -InputObject $txt >>"%PSRV%"
+echo $efe = 0.0 >>"%PSRV%"
+echo if ($o.mbps) { $efe = [double]$o.mbps } >>"%PSRV%"
+echo if ($dir -eq "upload") { $script:efeU = $efe } else { $script:efeD = $efe } >>"%PSRV%"
+echo if ($efe -gt 0 -and $efe -lt $pedido -and -not $script:avisou.Contains($dir)) { >>"%PSRV%"
+echo $script:avisou = $script:avisou + $dir >>"%PSRV%"
+echo Anota ((Hora) + "[INFO] o servidor limitou o " + $dir + " a " + (Fmt $efe) + " Mbps - teto deste login.") >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($o.test_id) { return [string]$o.test_id } >>"%PSRV%"
+echo if ($o.error) { Anota ((Hora) + "[SERVIDOR] " + [string]$o.error) } >>"%PSRV%"
+echo } catch { } >>"%PSRV%"
+echo return "" >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Parar($id) { >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $j = "{" + $q + "test_id" + $q + ":" + $q + $id + $q + "}" >>"%PSRV%"
+echo $sc = New-Object System.Net.Http.StringContent($j, [System.Text.Encoding]::UTF8, "application/json") >>"%PSRV%"
+echo $r = $cli.PostAsync(($base + "/test/stop"), $sc).Result >>"%PSRV%"
+echo $nada = [string]$r.Content.ReadAsStringAsync().Result >>"%PSRV%"
+echo } catch { } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function FaseDown($id, $limiteSeg, $nconx) { >>"%PSRV%"
+echo $tot = [long]0 >>"%PSRV%"
+echo $b5 = [long]0 >>"%PSRV%"
+echo $t5 = 0.0 >>"%PSRV%"
+echo $b30 = [long]0 >>"%PSRV%"
+echo $t30 = 0.0 >>"%PSRV%"
+echo $sts = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo $resps = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo $bufs = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo $sw = [System.Diagnostics.Stopwatch]::StartNew() >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
+echo $url = $base + "/download?test_id=" + $id + "&n=" + [string]$nconx >>"%PSRV%"
+echo $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $url) >>"%PSRV%"
+echo $resp = $cli.SendAsync($req, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result >>"%PSRV%"
+echo if (-not $resp.IsSuccessStatusCode) { >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] o servidor recusou o download - HTTP " + [string][int]$resp.StatusCode) >>"%PSRV%"
+echo Start-Sleep -Seconds 3 >>"%PSRV%"
+echo break >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $nada = $resps.Add($resp) >>"%PSRV%"
+echo $nada = $sts.Add($resp.Content.ReadAsStreamAsync().Result) >>"%PSRV%"
+echo $nada = $bufs.Add((New-Object byte[] 65536)) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $abertas = $sts.Count >>"%PSRV%"
+echo if ($abertas -gt 0) { >>"%PSRV%"
+echo while ($true) { >>"%PSRV%"
+echo $tarefas = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo for ($i = 0; $i -lt $abertas; $i++) { $nada = $tarefas.Add($sts[$i].ReadAsync($bufs[$i], 0, 65536)) } >>"%PSRV%"
+echo [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tarefas.ToArray()) >>"%PSRV%"
+echo $lidos = 0 >>"%PSRV%"
+echo for ($i = 0; $i -lt $abertas; $i++) { $lidos = $lidos + [int]$tarefas[$i].Result } >>"%PSRV%"
+echo if ($lidos -le 0) { break } >>"%PSRV%"
+echo $tot = $tot + $lidos >>"%PSRV%"
+echo $seg = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo if (($seg - $t5) -ge 5) { >>"%PSRV%"
+echo $v5 = ($tot - $b5) * 8.0 / 1000000.0 / ($seg - $t5) >>"%PSRV%"
+echo Write-Host ("  DOWNLOAD   " + (Fmt $v5) + " Mbps   " + [string]$abertas + " cx") -ForegroundColor Cyan >>"%PSRV%"
+echo $b5 = $tot >>"%PSRV%"
+echo $t5 = $seg >>"%PSRV%"
+echo if (-not (Vivo)) { break } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if (($seg - $t30) -ge 30) { >>"%PSRV%"
+echo $v30 = ($tot - $b30) * 8.0 / 1000000.0 / ($seg - $t30) >>"%PSRV%"
+echo Anota ((Hora) + "DOWNLOAD  ultimos 30s: " + (Fmt $v30) + " Mbps   media do ciclo: " + (Fmt ($tot * 8.0 / 1000000.0 / $seg)) + " Mbps") >>"%PSRV%"
+echo $b30 = $tot >>"%PSRV%"
+echo $t30 = $seg >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($seg -ge $limiteSeg) { break } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo } catch { >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] falha no download: " + $_.Exception.GetBaseException().Message) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $segf = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo Parar $id >>"%PSRV%"
+echo foreach ($s in $sts) { try { $s.Close() } catch { } } >>"%PSRV%"
+echo foreach ($r in $resps) { try { $r.Dispose() } catch { } } >>"%PSRV%"
+echo if ($segf -le 0) { return } >>"%PSRV%"
+echo if ($tot -le 0) { return } >>"%PSRV%"
+echo $med = $tot * 8.0 / 1000000.0 / $segf >>"%PSRV%"
+echo Anota ((Hora) + "DOWNLOAD encerrado: media " + (Fmt $med) + " Mbps   " + (Fmt ($tot / 1000000.0)) + " MB em " + (Fmt $segf) + "s   " + [string]$nconx + " cx") >>"%PSRV%"
+echo $script:segD = $script:segD + $segf >>"%PSRV%"
+echo $script:bytesD = $script:bytesD + $tot >>"%PSRV%"
+echo if ($script:melhorD -le 0 -or $med -gt $script:melhorD) { $script:melhorD = $med } >>"%PSRV%"
+echo if ($script:piorD -le 0 -or $med -lt $script:piorD) { $script:piorD = $med } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function FaseUp($id, $limiteSeg, $nconx) { >>"%PSRV%"
+echo $tam = 262144 >>"%PSRV%"
+echo $buf = New-Object byte[] $tam >>"%PSRV%"
+echo $rnd = New-Object System.Random >>"%PSRV%"
+echo $rnd.NextBytes($buf) >>"%PSRV%"
+echo $ref = [double]$alvoUp >>"%PSRV%"
+echo if ($efeU -gt 0) { $ref = [double]$efeU } >>"%PSRV%"
+echo $alvoBps = $ref * 1000000.0 / 8.0 >>"%PSRV%"
+echo if ($alvoBps -le 0) { $alvoBps = 1000000.0 } >>"%PSRV%"
+echo $url = $base + "/upload?test_id=" + $id >>"%PSRV%"
+echo $tot = [long]0 >>"%PSRV%"
+echo $b5 = [long]0 >>"%PSRV%"
+echo $t5 = 0.0 >>"%PSRV%"
+echo $b30 = [long]0 >>"%PSRV%"
+echo $t30 = 0.0 >>"%PSRV%"
+echo $sw = [System.Diagnostics.Stopwatch]::StartNew() >>"%PSRV%"
+echo while ($true) { >>"%PSRV%"
+echo $ruim = $false >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $tarefas = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
+echo $bc = New-Object System.Net.Http.ByteArrayContent(,$buf) >>"%PSRV%"
+echo $nada = $tarefas.Add($cli.PostAsync($url, $bc)) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tarefas.ToArray()) >>"%PSRV%"
+echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
+echo $rr = $tarefas[$i].Result >>"%PSRV%"
+echo if (-not $rr.IsSuccessStatusCode) { >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] o servidor recusou o upload - HTTP " + [string][int]$rr.StatusCode) >>"%PSRV%"
+echo $ruim = $true >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $nada = [string]$rr.Content.ReadAsStringAsync().Result >>"%PSRV%"
+echo } >>"%PSRV%"
+echo } catch { $ruim = $true >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] falha no upload: " + $_.Exception.GetBaseException().Message) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($ruim) { Start-Sleep -Seconds 3; break } >>"%PSRV%"
+echo $tot = $tot + ([long]$tam * $nconx) >>"%PSRV%"
+echo $seg = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo if (($seg - $t5) -ge 5) { >>"%PSRV%"
+echo $v5 = ($tot - $b5) * 8.0 / 1000000.0 / ($seg - $t5) >>"%PSRV%"
+echo Write-Host ("  UPLOAD     " + (Fmt $v5) + " Mbps   " + [string]$nconx + " cx") -ForegroundColor Magenta >>"%PSRV%"
+echo $b5 = $tot >>"%PSRV%"
+echo $t5 = $seg >>"%PSRV%"
+echo if (-not (Vivo)) { break } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if (($seg - $t30) -ge 30) { >>"%PSRV%"
+echo $v30 = ($tot - $b30) * 8.0 / 1000000.0 / ($seg - $t30) >>"%PSRV%"
+echo Anota ((Hora) + "UPLOAD    ultimos 30s: " + (Fmt $v30) + " Mbps   media do ciclo: " + (Fmt ($tot * 8.0 / 1000000.0 / $seg)) + " Mbps") >>"%PSRV%"
+echo $b30 = $tot >>"%PSRV%"
+echo $t30 = $seg >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($seg -ge $limiteSeg) { break } >>"%PSRV%"
+echo $esperado = $tot / $alvoBps >>"%PSRV%"
+echo $espera = ($esperado - $seg) * 1000.0 >>"%PSRV%"
+echo if ($espera -gt 1) { Start-Sleep -Milliseconds ([int]$espera) } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $segf = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo Parar $id >>"%PSRV%"
+echo if ($segf -le 0) { return } >>"%PSRV%"
+echo if ($tot -le 0) { return } >>"%PSRV%"
+echo $med = $tot * 8.0 / 1000000.0 / $segf >>"%PSRV%"
+echo Anota ((Hora) + "UPLOAD encerrado: media " + (Fmt $med) + " Mbps   " + (Fmt ($tot / 1000000.0)) + " MB em " + (Fmt $segf) + "s   " + [string]$nconx + " cx") >>"%PSRV%"
+echo $script:segU = $script:segU + $segf >>"%PSRV%"
+echo $script:bytesU = $script:bytesU + $tot >>"%PSRV%"
+echo if ($script:melhorU -le 0 -or $med -gt $script:melhorU) { $script:melhorU = $med } >>"%PSRV%"
+echo if ($script:piorU -le 0 -or $med -lt $script:piorU) { $script:piorU = $med } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $titulo = "LAUDO_SERVIDOR" >>"%PSRV%"
+echo if ($dirCfg -eq "download") { $titulo = "LAUDO_SERVIDOR - DOWNLOAD" } >>"%PSRV%"
+echo if ($dirCfg -eq "upload") { $titulo = "LAUDO_SERVIDOR - UPLOAD" } >>"%PSRV%"
+echo try { $host.UI.RawUI.WindowTitle = $titulo } catch { } >>"%PSRV%"
+echo Anota "=====================================================" >>"%PSRV%"
+echo Anota "  ABA 9 - VELOCIDADE NO SERVIDOR PROPRIO" >>"%PSRV%"
+echo Anota "=====================================================" >>"%PSRV%"
+echo Anota ("  Servidor : " + $base) >>"%PSRV%"
+echo Anota ("  Usuario  : " + [string]$usuario) >>"%PSRV%"
+echo Anota ("  Pedido   : download " + [string]$alvo + " Mbps    upload " + [string]$alvoUp + " Mbps") >>"%PSRV%"
+echo Anota ("  Conexoes : download " + [string]$conxD + "    upload " + [string]$conxU) >>"%PSRV%"
+echo Anota ("  Direcao  : " + $dirCfg) >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { Anota ("  Alterna a cada " + [string]$bloco + "s") } >>"%PSRV%"
+echo Anota ("  Inicio   : " + (Get-Date).ToString("dd/MM/yyyy HH:mm:ss")) >>"%PSRV%"
+echo Anota "  Roda sem parar ate o tempo do laudo acabar." >>"%PSRV%"
+echo Anota "-----------------------------------------------------" >>"%PSRV%"
+echo if (-not (Entrar)) { >>"%PSRV%"
+echo Anota "  [ERRO] nao consegui logar no servidor agora." >>"%PSRV%"
+echo Anota "  Confira se o servidor.py continua ligado e se a rede chega nele." >>"%PSRV%"
+echo Start-Sleep -Seconds 15 >>"%PSRV%"
+echo exit >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $dir = "download" >>"%PSRV%"
+echo if ($dirCfg -eq "upload") { $dir = "upload" } >>"%PSRV%"
+echo $limite = 999999 >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { $limite = $bloco } >>"%PSRV%"
+echo while (Vivo) { >>"%PSRV%"
+echo $id = Comecar $dir >>"%PSRV%"
+echo if ($id -eq "") { >>"%PSRV%"
+echo Anota ((Hora) + "[AVISO] o servidor nao aceitou iniciar o teste de " + $dir + ". Nova tentativa em 5s.") >>"%PSRV%"
+echo Start-Sleep -Seconds 5 >>"%PSRV%"
+echo $nada = Entrar >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { if ($dir -eq "download") { $dir = "upload" } else { $dir = "download" } } >>"%PSRV%"
+echo continue >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($dir -eq "download") { FaseDown $id $limite $conxD } else { FaseUp $id $limite $conxU } >>"%PSRV%"
+echo Parar $id >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { if ($dir -eq "download") { $dir = "upload" } else { $dir = "download" } } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo Anota "-----------------------------------------------------" >>"%PSRV%"
+echo Anota ("  Fim      : " + (Get-Date).ToString("dd/MM/yyyy HH:mm:ss")) >>"%PSRV%"
+echo if ($segD -gt 0) { Anota ("  DOWNLOAD media geral: " + (Fmt ($bytesD * 8.0 / 1000000.0 / $segD)) + " Mbps   melhor: " + (Fmt $melhorD) + " Mbps   pior: " + (Fmt $piorD) + " Mbps   total: " + (Fmt ($bytesD / 1000000.0)) + " MB") } >>"%PSRV%"
+echo if ($segU -gt 0) { Anota ("  UPLOAD   media geral: " + (Fmt ($bytesU * 8.0 / 1000000.0 / $segU)) + " Mbps   melhor: " + (Fmt $melhorU) + " Mbps   pior: " + (Fmt $piorU) + " Mbps   total: " + (Fmt ($bytesU / 1000000.0)) + " MB") } >>"%PSRV%"
+echo if ($segD -le 0 -and $segU -le 0) { Anota "  [AVISO] nenhuma medicao valida foi concluida." } >>"%PSRV%"
+echo Anota "=====================================================" >>"%PSRV%"
+echo Write-Host "  Pode fechar esta janela." -ForegroundColor Yellow >>"%PSRV%"
+:: --- COMO ABRIR: alternado = 1 janela / juntos = 2 janelas ---
+set "SRV_LOG1=%LAUDO%\servidor_speed.txt"
+set "SRV_LOG2=%LAUDO%\servidor_speed_up.txt"
+if /i not "%SRV_DIRECAO%"=="ambos" goto ABA9_UMA_JANELA
+if /i not "%SRV_MODO%"=="juntos" goto ABA9_UMA_JANELA
+:: modo JUNTOS: duas janelas, uma so baixando e outra so enviando,
+:: ao mesmo tempo. Logs separados porque sao dois processos gravando.
+start "LAUDO_SRV_DL" cmd /k color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "download" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%"
+timeout /t 2 >nul
+start "LAUDO_SRV_UP" cmd /k color 0D ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "upload" "%SRV_LOG2%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%"
+goto ABA9_SEM_JANELA
+
+:ABA9_UMA_JANELA
+start "LAUDO_SERVIDOR" cmd /k color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "%SRV_DIRECAO%" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%"
+:ABA9_SEM_JANELA
+
 :: ABAS 1 a 6 - PINGS AO VIVO COM BIP
 echo Abrindo as abas de ping com BIP...
 break>"%TEMP%\lr_hb.flag" 2>nul
@@ -1638,7 +2357,7 @@ echo $pai = 0 >>"%PFIM%"
 echo try { $pai = (Get-CimInstance Win32_Process -Filter ('ProcessId=' + $meu)).ParentProcessId } catch {} >>"%PFIM%"
 echo $vovo = 0 >>"%PFIM%"
 echo try { $vovo = (Get-CimInstance Win32_Process -Filter ('ProcessId=' + $pai)).ParentProcessId } catch {} >>"%PFIM%"
-echo $lista = Get-CimInstance Win32_Process ^| Where-Object { $_.ProcessId -ne $meu -and $_.ProcessId -ne $pai -and $_.ProcessId -ne $vovo -and $_.CommandLine -match 'ping_beep^|speed_loop^|fast_loop' } >>"%PFIM%"
+echo $lista = Get-CimInstance Win32_Process ^| Where-Object { $_.ProcessId -ne $meu -and $_.ProcessId -ne $pai -and $_.ProcessId -ne $vovo -and $_.CommandLine -match 'ping_beep^|speed_loop^|fast_loop^|srv_speed' } >>"%PFIM%"
 echo foreach ($p in $lista) { try { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue } catch {} } >>"%PFIM%"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PFIM%" >nul 2>&1
 
@@ -1674,12 +2393,21 @@ echo  LAUDO TECNICO : %LAUDO%\VEREDITO.txt
 echo  PASTA COMPLETA: %LAUDO%
 echo.
 echo  Tracando a rota ate a internet (tracert) - aguarde...
+:: pausa curta: depois de minutos de ping, roteador e borda costumam estar
+:: com o ICMP no limite. Sem essa folga o tracert volta so com asteriscos.
+timeout /t 8 /nobreak >nul
+:: -4 fixa IPv4 / -h 30 igual ao tracert manual / -w 3000 da tempo do
+:: roteador montar o ICMP de resposta - ele faz isso com prioridade baixa
+:: ATENCAO: dentro dos parenteses NAO pode comentario nem parentese solto
 (
-echo ===== ROTA ATE %ALVO_INTERNET% (tracert) =====
+echo ===== ROTA ATE %ALVO_INTERNET% ^(tracert^) =====
 echo Data: %date% %time%
 echo.
-tracert -d -h 20 -w 800 %ALVO_INTERNET%
+tracert -4 -d -h 30 -w 3000 %ALVO_INTERNET%
 ) > "%LAUDO%\ROTA_tracert.txt" 2>&1
+:: mostra na tela tambem, como antes
+type "%LAUDO%\ROTA_tracert.txt"
+echo.
 echo  Rota salva em ROTA_tracert.txt
 echo.
 
@@ -1688,6 +2416,7 @@ del "%PBEEP%" "%PFALA%" "%PWAIT%" "%PTG%" "%PNET%" "%PCHK%" "%PSAN%" "%PVER%" >n
 del "%LAUDO%\_sat_speed.flag" "%LAUDO%\_sat_fast.flag" >nul 2>&1
 del "%TEMP%\lr_hb.flag" >nul 2>&1
 del "%TEMP%\speed_loop.bat" "%TEMP%\fast_loop.bat" "%TEMP%\lr_ver.ps1" "%TEMP%\lr_notas.txt" >nul 2>&1
+del "%TEMP%\srv_speed.ps1" "%TEMP%\srv_login.ps1" >nul 2>&1
 echo.
 
 :: =========================================================
@@ -3051,10 +3780,10 @@ set "PROB_IA="
 
 :: --- checa FORMATO basico (anti-corrupcao) ---
 :: Telegram so testa se o envio esta ligado
+:: token deve ter ':' no meio - formato 123:AAA
+:: chat deve comecar com - para grupo, ou ser numero
 if /i "%TG_ENVIAR%"=="sim" (
-  :: token deve ter ':' no meio (formato 123:AAA)
   echo %TG_TOKEN% | find ":" >nul || set "PROB_TG=formato do token invalido"
-  :: chat deve comecar com - (grupo) ou ser numero
   if "%TG_TOKEN%"=="x" set "PROB_TG=token nao configurado"
   if "%TG_CHAT%"=="x" set "PROB_TG=chat id nao configurado"
   if not defined TG_CHAT set "PROB_TG=chat id vazio"
@@ -3209,6 +3938,129 @@ goto :eof
 >>"%CFG%" echo TG_TOKEN=%TG_TOKEN%
 >>"%CFG%" echo TG_CHAT=%TG_CHAT%
 >>"%CFG%" echo IA_KEY=%IA_KEY%
+goto :eof
+
+:: =========================================================
+:: SUB-ROTINA: CARREGAR / CRIAR VELOCIDADE.INI  (ABA 9)
+::   Mesmo esquema do servidor.py com o config/config.json:
+::     - 1a vez: nao existe arquivo -> cria com os valores de fabrica
+::       que estao no TOPO deste .bat e avisa onde ficou.
+::     - dai em diante: SEMPRE le do arquivo, e o que esta no topo
+::       do .bat vira so o valor de fabrica (nao manda mais nada).
+::   Vantagem: quando o script se atualizar pelo GitHub, os seus
+::   ajustes NAO se perdem - igual acontece com o config.ini.
+:: =========================================================
+:CARREGAR_CONFIG_VEL
+set "CFGVEL=%CFG_DIR%\velocidade.ini"
+if not exist "%CFGVEL%" goto CRIAR_CONFIG_VEL
+for /f "usebackq tokens=1,* delims==" %%a in ("%CFGVEL%") do (
+  if /i "%%a"=="SRV_ATIVAR" set "SRV_ATIVAR=%%b"
+  if /i "%%a"=="SRV_PRECONFIG" set "SRV_PRECONFIG=%%b"
+  if /i "%%a"=="SRV_PREFERENCIA" set "SRV_PREFERENCIA=%%b"
+  if /i "%%a"=="SRV_URL_IPV4" set "SRV_URL_IPV4=%%b"
+  if /i "%%a"=="SRV_URL_IPV6" set "SRV_URL_IPV6=%%b"
+  if /i "%%a"=="SRV_LOGIN" set "SRV_LOGIN=%%b"
+  if /i "%%a"=="SRV_SENHA" set "SRV_SENHA=%%b"
+  if /i "%%a"=="SRV_VELOCIDADE" set "SRV_VELOCIDADE=%%b"
+  if /i "%%a"=="SRV_VELOCIDADE_UP" set "SRV_VELOCIDADE_UP=%%b"
+  if /i "%%a"=="SRV_DIRECAO" set "SRV_DIRECAO=%%b"
+  if /i "%%a"=="SRV_MODO" set "SRV_MODO=%%b"
+  if /i "%%a"=="SRV_BLOCO" set "SRV_BLOCO=%%b"
+  if /i "%%a"=="SRV_CONEX_DL" set "SRV_CONEX_DL=%%b"
+  if /i "%%a"=="SRV_CONEX_UP" set "SRV_CONEX_UP=%%b"
+)
+goto :eof
+
+:CRIAR_CONFIG_VEL
+>"%CFGVEL%" echo ; =====================================================
+>>"%CFGVEL%" echo ; ABA 9 - TESTE DE VELOCIDADE NO SEU PROPRIO SERVIDOR
+>>"%CFGVEL%" echo ; Criado sozinho na primeira execucao. Edite com o
+>>"%CFGVEL%" echo ; Bloco de Notas e salve. Linha com ; na frente e so
+>>"%CFGVEL%" echo ; comentario. Nao ponha aspas nos valores.
+>>"%CFGVEL%" echo ; =====================================================
+>>"%CFGVEL%" echo ;
+>>"%CFGVEL%" echo ; SRV_ATIVAR .......: sim / nao
+>>"%CFGVEL%" echo ; SRV_PRECONFIG ....: sim = ja vem pronto (URL, login, senha)
+>>"%CFGVEL%" echo ; SRV_PREFERENCIA ..: ipv4 / ipv6 / ambos
+>>"%CFGVEL%" echo ; SRV_VELOCIDADE ...: Mbps do download, ou a palavra perguntar
+>>"%CFGVEL%" echo ; SRV_VELOCIDADE_UP : Mbps do upload, ou a palavra perguntar
+>>"%CFGVEL%" echo ; SRV_DIRECAO ......: download / upload / ambos / perguntar
+>>"%CFGVEL%" echo ; SRV_MODO .........: so vale quando a direcao acaba em ambos
+>>"%CFGVEL%" echo ;                     alternado = um de cada vez, 1 janela
+>>"%CFGVEL%" echo ;                     juntos    = os dois juntos, 2 janelas
+>>"%CFGVEL%" echo ;                     perguntar = o tecnico escolhe na hora
+>>"%CFGVEL%" echo ; SRV_BLOCO ........: segundos de cada volta no alternado
+>>"%CFGVEL%" echo ; SRV_CONEX_DL .....: conexoes ao mesmo tempo no download (1 a 8)
+>>"%CFGVEL%" echo ; SRV_CONEX_UP .....: conexoes ao mesmo tempo no upload (1 a 8)
+>>"%CFGVEL%" echo ;                     a velocidade pedida e DIVIDIDA entre elas
+>>"%CFGVEL%" echo ;
+>>"%CFGVEL%" echo SRV_ATIVAR=%SRV_ATIVAR%
+>>"%CFGVEL%" echo SRV_PRECONFIG=%SRV_PRECONFIG%
+>>"%CFGVEL%" echo SRV_PREFERENCIA=%SRV_PREFERENCIA%
+>>"%CFGVEL%" echo SRV_URL_IPV4=%SRV_URL_IPV4%
+>>"%CFGVEL%" echo SRV_URL_IPV6=%SRV_URL_IPV6%
+>>"%CFGVEL%" echo SRV_LOGIN=%SRV_LOGIN%
+>>"%CFGVEL%" echo SRV_SENHA=%SRV_SENHA%
+>>"%CFGVEL%" echo SRV_VELOCIDADE=%SRV_VELOCIDADE%
+>>"%CFGVEL%" echo SRV_VELOCIDADE_UP=%SRV_VELOCIDADE_UP%
+>>"%CFGVEL%" echo SRV_DIRECAO=%SRV_DIRECAO%
+>>"%CFGVEL%" echo SRV_MODO=%SRV_MODO%
+>>"%CFGVEL%" echo SRV_BLOCO=%SRV_BLOCO%
+>>"%CFGVEL%" echo SRV_CONEX_DL=%SRV_CONEX_DL%
+>>"%CFGVEL%" echo SRV_CONEX_UP=%SRV_CONEX_UP%
+echo.
+echo   -----------------------------------------------------
+echo   ABA 9: criei o arquivo de configuracao da velocidade:
+echo   %CFGVEL%
+echo.
+echo   La voce muda a velocidade, as conexoes ao mesmo tempo
+echo   e se download e upload rodam JUNTOS ou ALTERNADOS.
+echo   Este arquivo NAO se perde quando o script atualizar.
+echo   -----------------------------------------------------
+timeout /t 4 >nul
+goto :eof
+
+:: =========================================================
+:: SUB-ROTINA: ABA 9 - ARRUMA O NUMERO DE CONEXOES
+::   entra:  %1 = NOME da variavel (ex: SRV_CONEX_DL)
+::   sai:    a variavel vira um numero de 1 a 8 (lixo vira 4)
+:: =========================================================
+:SRV_LIMPA_CONEX
+call set "_CX=%%%~1%%"
+echo %_CX%| findstr /r "^[1-8]$" >nul || set "_CX=4"
+set "%~1=%_CX%"
+set "_CX="
+goto :eof
+
+:: =========================================================
+:: SUB-ROTINA: ABA 9 - TESTA O LOGIN NO SERVIDOR PROPRIO
+::   entra:  %1 = URL base    sai: SRV_OK / SRV_URL / SRV_MAXDL / SRV_MAXUL
+:: =========================================================
+:ABA9_LOGIN
+set "U9=%~1"
+if not defined U9 goto :eof
+echo   Falando com %U9% ...
+set "R9="
+for /f "delims=" %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRVLOG%" "%U9%" "%SRV_LOGIN%" "%SRV_SENHA%"') do set "R9=%%r"
+if not defined R9 set "R9=FALHA|o PowerShell nao respondeu"
+set "S9="
+set "A9="
+set "B9="
+for /f "tokens=1-3 delims=|" %%a in ("%R9%") do (
+  set "S9=%%a"
+  set "A9=%%b"
+  set "B9=%%c"
+)
+if /i not "%S9%"=="OK" goto ABA9_LOGIN_RUIM
+set "SRV_URL=%U9%"
+set "SRV_MAXDL=%A9%"
+set "SRV_MAXUL=%B9%"
+set "SRV_OK=1"
+echo   [OK] Login aceito. Teto: download %A9% Mbps / upload %B9% Mbps
+goto :eof
+:ABA9_LOGIN_RUIM
+set "SRV_MOTIVO=%A9%"
+echo   [FALHA] %A9%
 goto :eof
 
 :: =========================================================
