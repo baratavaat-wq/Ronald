@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1054"
+set "VER=1055"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -207,7 +207,7 @@ set "FASTARGS="
 ::                   1600 Mbps no total.
 ::                   ou a palavra  perguntar  para o tecnico digitar.
 :: +=======================================================+
-set "SRV_ATIVAR=sim"
+set "SRV_ATIVAR=nao"
 set "SRV_PRECONFIG=sim"
 set "SRV_PREFERENCIA=ambos"
 set "SRV_URL_IPV4=http://SEU-IP:8080"
@@ -405,6 +405,12 @@ set "CLI_PASTA="
 for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PSAN%" "%CLIENTE%"') do set "CLI_PASTA=%%i"
 if not defined CLI_PASTA set "CLI_PASTA=cliente"
 
+:: numero da O.S. limpo, para usar no nome da pasta (mesmo saneador do cliente)
+set "OS_PASTA="
+for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PSAN%" "%OS_ID%"') do set "OS_PASTA=%%i"
+if not defined OS_PASTA set "OS_PASTA=SEM"
+if /i "%OS_PASTA%"=="cliente" set "OS_PASTA=SEM"
+
 :: PASTA DO LAUDO (com o nome do tecnico)
 :: laudos na pasta central (fora da area de trabalho)
 set "BASE_LAUDOS=%ProgramData%\LaudoRede\Laudos"
@@ -416,8 +422,12 @@ if exist "%BASE_LAUDOS%\_t.tmp" (
   set "BASE_LAUDOS=%APPDATA%\LaudoRede\Laudos"
   mkdir "%APPDATA%\LaudoRede\Laudos" >nul 2>&1
 )
-set "LAUDO=!BASE_LAUDOS!\LAUDO_%TECNICO%_%CLI_PASTA%_%STAMP%"
+set "LAUDO=!BASE_LAUDOS!\LAUDO_%TECNICO%_OS-%OS_PASTA%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
+
+:: atalho na Area de Trabalho apontando para a pasta central dos laudos
+:: (respeita Desktop redirecionado p/ OneDrive; so cria se ainda nao existir)
+powershell -NoProfile -Command "$d=[Environment]::GetFolderPath('Desktop'); $lnk=Join-Path $d 'Laudos de Rede.lnk'; if(-not (Test-Path $lnk)){$w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut($lnk); $s.TargetPath='!BASE_LAUDOS!'; $s.WorkingDirectory='!BASE_LAUDOS!'; $s.Description='Laudos de Rede - relatorios salvos aqui'; $s.Save()}" >nul 2>&1
 
 :: =========================================================
 :: PERGUNTA 3 - MINUTOS
@@ -2639,10 +2649,17 @@ exit
 :: =========================================================
 :CARREGAR_CONFIG
 if not exist "%CFG_DIR%" mkdir "%CFG_DIR%" >nul 2>&1
+set "CFG_OK=1"
+:: (1) da pra CRIAR arquivo novo nesta pasta?
 break>"%CFG_DIR%\_t.tmp" 2>nul
-if exist "%CFG_DIR%\_t.tmp" (
-  del "%CFG_DIR%\_t.tmp" >nul 2>&1
-) else (
+if exist "%CFG_DIR%\_t.tmp" (del "%CFG_DIR%\_t.tmp" >nul 2>&1) else (set "CFG_OK=0")
+:: (2) e da pra REGRAVAR os arquivos que JA existem?  A pasta pode
+::     aceitar arquivo novo mas travar a regravacao do velocidade.ini
+::     de uma execucao ANTERIOR (as vezes aberta como admin) -> era
+::     isso que gerava a enxurrada de "Acesso negado".
+if "%CFG_OK%"=="1" call :LR_PODE_ESCREVER "%CFG_DIR%\config.ini"     || set "CFG_OK=0"
+if "%CFG_OK%"=="1" call :LR_PODE_ESCREVER "%CFG_DIR%\velocidade.ini" || set "CFG_OK=0"
+if "%CFG_OK%"=="0" (
   set "CFG_DIR=%APPDATA%\LaudoRede"
   set "CFG=%APPDATA%\LaudoRede\config.ini"
   if not exist "%APPDATA%\LaudoRede" mkdir "%APPDATA%\LaudoRede" >nul 2>&1
@@ -4067,6 +4084,21 @@ goto :eof
 call set "%~1=%%FAB_%~1%%"
 goto :eof
 
+:: ---- testa se da pra ESCREVER (regravar) num arquivo que JA existe ----
+::   volta errorlevel 0 = pode gravar ; 1 = nao pode (travado/somente-leitura).
+::   se o arquivo nem existe, considera "pode" (a pasta ja passou no teste 1).
+::   como: tira o somente-leitura, copia o arquivo e regrava por cima com o
+::   MESMO conteudo (nao muda nada) so pra ver se o Windows deixa. O erro do
+::   copy vai pro >nul, entao nao suja a tela.
+:LR_PODE_ESCREVER
+if not exist "%~1" exit /b 0
+attrib -r "%~1" >nul 2>&1
+copy /y "%~1" "%~1.wtest" >nul 2>&1 || exit /b 1
+copy /y "%~1.wtest" "%~1" >nul 2>&1
+set "_LRW=%errorlevel%"
+del "%~1.wtest" >nul 2>&1
+exit /b %_LRW%
+
 :: ---- aplica UMA linha do .ini, tirando espaco sobrando ----
 ::   entra: %1 = nome da chave   %2 = valor
 ::   chave desconhecida ou linha sem = : ignora em silencio
@@ -4097,6 +4129,16 @@ goto :eof
 
 :: ---- grava o velocidade.ini (criacao e migracao usam este mesmo) ----
 :GRAVAR_CONFIG_VEL
+:: garante que da pra gravar ANTES de sair escrevendo 44 linhas: evita a
+:: chuva de "Acesso negado" e a falsa mensagem de "REGRAVADOS com sucesso".
+attrib -r "%CFGVEL%" >nul 2>&1
+call :LR_PODE_ESCREVER "%CFGVEL%"
+if errorlevel 1 (
+  :: travado onde esta -> cai pro perfil do usuario (sempre gravavel)
+  set "CFGVEL=%APPDATA%\LaudoRede\velocidade.ini"
+  if not exist "%APPDATA%\LaudoRede" mkdir "%APPDATA%\LaudoRede" >nul 2>&1
+  attrib -r "!CFGVEL!" >nul 2>&1
+)
 >"%CFGVEL%" echo ; =====================================================
 >>"%CFGVEL%" echo ; ABA 9 - TESTE DE VELOCIDADE NO SEU PROPRIO SERVIDOR
 >>"%CFGVEL%" echo ; Edite com o Bloco de Notas e salve. Linha com ; na
@@ -4141,8 +4183,12 @@ goto :eof
 >>"%CFGVEL%" echo SRV_BLOCO=%SRV_BLOCO%
 >>"%CFGVEL%" echo SRV_CONEX_DL=%SRV_CONEX_DL%
 >>"%CFGVEL%" echo SRV_CONEX_UP=%SRV_CONEX_UP%
+:: confere se REALMENTE gravou (procura a linha INI_VER que acabamos de por)
+set "VEL_GRAVOU=0"
+findstr /b /c:"INI_VER=%VER%" "%CFGVEL%" >nul 2>&1 && set "VEL_GRAVOU=1"
 echo.
 echo   -----------------------------------------------------
+if "%VEL_GRAVOU%"=="0" goto VEL_AVISO_FALHOU
 if /i "%VEL_ACAO%"=="SALVAR" goto VEL_AVISO_SALVOU
 if /i "%VEL_ACAO%"=="MIGRAR" goto VEL_AVISO_MIGROU
 echo   ABA 9: criei o arquivo de configuracao da velocidade:
@@ -4166,6 +4212,19 @@ echo   %CFGVEL%
 echo.
 echo   O arquivo anterior foi guardado como:
 echo   velocidade.ini.bak
+goto VEL_AVISO_FIM
+
+:VEL_AVISO_FALHOU
+echo   [ATENCAO] ABA 9: NAO consegui gravar o velocidade.ini.
+echo   O arquivo pode estar travado por uma execucao anterior
+echo   (as vezes aberta como administrador) ou marcado como
+echo   somente-leitura. A ABA 9 segue com os valores de fabrica
+echo   desta versao, mas sem salvar para a proxima visita.
+echo.
+echo   Para resolver de vez, faca UMA das opcoes:
+echo     - rode o LAUDO DE REDE como ADMINISTRADOR uma vez, ou
+echo     - apague o arquivo abaixo e rode de novo:
+echo   %CFGVEL%
 :VEL_AVISO_FIM
 echo   -----------------------------------------------------
 if /i "%VEL_ACAO%"=="SALVAR" (timeout /t 2 >nul) else (timeout /t 4 >nul)
