@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1055"
+set "VER=1056"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -394,7 +394,7 @@ set "PSAN=%TEMP%\sanit.ps1"
 del "%PSAN%" >nul 2>&1
 echo param($txt) >>"%PSAN%"
 echo $c = $txt -replace '[\\/:*?^<^>^|]', '' >>"%PSAN%"
-echo $c = $c -replace '[^\x20-\x7E]', '' >>"%PSAN%"
+echo $c = $c -replace '[^^\x20-\x7E]', '' >>"%PSAN%"
 echo $c = $c -replace '[\x00-\x1F]', '' >>"%PSAN%"
 echo $c = $c -replace '\s+', '_' >>"%PSAN%"
 echo $c = $c.Trim('. _') >>"%PSAN%"
