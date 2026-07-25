@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1051"
+set "VER=1052"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -2659,6 +2659,23 @@ if exist "%CFG%" (
     if /i "%%a"=="IA_KEY" set "IA_KEY=%%b"
   )
 )
+:: --- higieniza a IA_KEY lida do config.ini (corrige linha corrompida/colada errada) ---
+if defined IA_KEY (
+  set "IA_KEY_OK=!IA_KEY!"
+  set "IA_KEY_OK=!IA_KEY_OK:"=!"
+  set "IA_KEY_OK=!IA_KEY_OK:^=!"
+  set "IA_KEY_OK=!IA_KEY_OK:&=!"
+  set "IA_KEY_OK=!IA_KEY_OK:|=!"
+  set "IA_KEY_OK=!IA_KEY_OK:<=!"
+  set "IA_KEY_OK=!IA_KEY_OK:>=!"
+  if not "!IA_KEY_OK!"=="!IA_KEY!" (
+    echo   [aviso] A IA_KEY salva no config.ini estava corrompida ^(caractere invalido^). Vou pedir a chave de novo.
+    set "IA_KEY="
+  ) else (
+    set "IA_KEY=!IA_KEY_OK!"
+  )
+  set "IA_KEY_OK="
+)
 if defined TG_TOKEN if defined TG_CHAT if defined IA_KEY goto :eof
 
 cls
@@ -2697,7 +2714,12 @@ if not defined IA_KEY (
   echo   -----------------------------------------------------
   set "IA_KEY="
   set /p "IA_KEY=  Cole a chave da IA (ou ENTER para pular): "
-  if defined IA_KEY set "IA_KEY=%IA_KEY:"=%"
+  if defined IA_KEY set "IA_KEY=!IA_KEY:"=!"
+  if defined IA_KEY set "IA_KEY=!IA_KEY:^=!"
+  if defined IA_KEY set "IA_KEY=!IA_KEY:&=!"
+  if defined IA_KEY set "IA_KEY=!IA_KEY:|=!"
+  if defined IA_KEY set "IA_KEY=!IA_KEY:<=!"
+  if defined IA_KEY set "IA_KEY=!IA_KEY:>=!"
   if not defined IA_KEY set "IA_KEY=x"
 )
 
@@ -2705,7 +2727,7 @@ if not defined IA_KEY (
 >"%CFG%" echo TG_ENVIAR=%TG_ENVIAR%
 >>"%CFG%" echo TG_TOKEN=%TG_TOKEN%
 >>"%CFG%" echo TG_CHAT=%TG_CHAT%
->>"%CFG%" echo IA_KEY=%IA_KEY%
+>>"%CFG%" echo IA_KEY=!IA_KEY!
 echo.
 echo   Configuracao salva em %CFG%
 timeout /t 2 >nul
@@ -2741,7 +2763,7 @@ echo   Analisando o resultado do teste, aguarde...
 > "%TEMP%\ia_ctx.txt" echo %CTX%
 >> "%TEMP%\ia_ctx.txt" echo ###PERGUNTA###
 >> "%TEMP%\ia_ctx.txt" echo Analise este teste e escreva um laudo tecnico curto: 1 - situacao geral da conexao; 2 - se o problema e local do cliente ou de fora (operadora), ou se esta tudo certo; 3 - o que o tecnico deve fazer agora. Use SOMENTE os numeros que estao em DADOS DO TESTE. Nao cite quantidade de aparelhos conectados, potencia optica, canal nem velocidade contratada, pois nada disso foi medido.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "%IA_KEY%" "%LAUDO%\LAUDO_IA.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "!IA_KEY!" "%LAUDO%\LAUDO_IA.txt"
 echo.
 echo   -----------------------------------------------------
 echo   A IA pode cometer erros. Confira sempre os numeros do
@@ -2785,7 +2807,7 @@ set /a "NPERG=%NPERG%+1"
 
 echo.
 echo   Consultando a IA...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "%IA_KEY%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PIA%" "!IA_KEY!"
 goto LOOP_IA
 
 :IA_SEM_CHAVE
@@ -3833,11 +3855,11 @@ if /i "%TG_ENVIAR%"=="sim" (
   if not defined TG_CHAT set "PROB_TG=chat id vazio"
 )
 :: IA so checa formato (nao gasta token)
-if not "%IA_KEY%"=="x" (
+if not "!IA_KEY!"=="x" (
   if not defined IA_KEY (
     set "PROB_IA=chave nao configurada"
   ) else (
-    echo %IA_KEY% | find "sk-" >nul || set "PROB_IA=formato da chave invalido (deve comecar com sk-)"
+    echo !IA_KEY! | find "sk-" >nul || set "PROB_IA=formato da chave invalido (deve comecar com sk-)"
   )
 )
 
@@ -3917,7 +3939,12 @@ echo   --- Corrigir chave da IA ---
 echo.
 echo   Cole a chave da DeepSeek (comeca com sk-).
 set /p "IA_KEY=  Chave: "
-if defined IA_KEY set "IA_KEY=%IA_KEY:"=%"
+if defined IA_KEY set "IA_KEY=!IA_KEY:"=!"
+if defined IA_KEY set "IA_KEY=!IA_KEY:^=!"
+if defined IA_KEY set "IA_KEY=!IA_KEY:&=!"
+if defined IA_KEY set "IA_KEY=!IA_KEY:|=!"
+if defined IA_KEY set "IA_KEY=!IA_KEY:<=!"
+if defined IA_KEY set "IA_KEY=!IA_KEY:>=!"
 if not defined IA_KEY set "IA_KEY=x"
 call :SALVAR_CFG
 echo.
@@ -3981,7 +4008,7 @@ goto :eof
 >"%CFG%" echo TG_ENVIAR=%TG_ENVIAR%
 >>"%CFG%" echo TG_TOKEN=%TG_TOKEN%
 >>"%CFG%" echo TG_CHAT=%TG_CHAT%
->>"%CFG%" echo IA_KEY=%IA_KEY%
+>>"%CFG%" echo IA_KEY=!IA_KEY!
 goto :eof
 
 :: =========================================================
