@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1053"
+set "VER=1054"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -2678,6 +2678,9 @@ if defined IA_KEY (
 )
 if defined TG_TOKEN if defined TG_CHAT if defined IA_KEY goto :eof
 
+:: --- so pede o que realmente estiver faltando (Telegram e IA sao independentes) ---
+if defined TG_TOKEN if defined TG_CHAT goto PULA_TELEGRAM_INICIAL
+
 cls
 echo =====================================================
 echo         CONFIGURACAO INICIAL DO TELEGRAM
@@ -2692,7 +2695,7 @@ echo.
 echo   Enviar os laudos para o Telegram?
 set "QTG="
 set /p "QTG=  [S] Sim  /  [N] Nao: "
-if /i not "%QTG%"=="S" (set "TG_ENVIAR=nao" & set "TG_TOKEN=x" & set "TG_CHAT=x" & goto GRAVA_CONFIG)
+if /i not "%QTG%"=="S" (set "TG_ENVIAR=nao" & set "TG_TOKEN=x" & set "TG_CHAT=x" & goto PULA_TELEGRAM_INICIAL)
 set "TG_ENVIAR=sim"
 echo.
 echo   TOKEN do bot ^(BotFather^). Ex: 123456:AAF...
@@ -2703,6 +2706,7 @@ echo   CHAT ID do grupo ^(comeca com -100...^).
 set /p "TG_CHAT=  Chat ID: "
 if defined TG_CHAT set "TG_CHAT=%TG_CHAT:"=%"
 
+:PULA_TELEGRAM_INICIAL
 :: --- chave da IA (assistente no final) - opcional ---
 if not defined IA_KEY (
   echo.
