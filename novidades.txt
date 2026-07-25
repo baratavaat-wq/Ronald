@@ -1,1 +1,4 @@
 BUG DE CHAVE DE IA CORRIGIDO QUANDO AO COLOCAR SCRIPT FECHAR
+corrigido bug da atulizaçao do scrip do acesso negado
+colocado laudo atalho na area de trabalho
+servido speed teste constate desativado, pois ainda nao saber qual computado vai ficar é se vale apena deixa ativado
