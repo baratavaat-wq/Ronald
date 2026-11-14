@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1057"
+set "VER=1058"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -110,7 +110,7 @@ set "LIMITE_EXTRA_IPV6=120"
 ::   MUDA  : NOME  = nome do .exe (aceita * curinga)
 ::   MUDA  : ARGS  = argumentos (vazio = nenhum)
 :: +=======================================================+
-set "INTERVALO_SPEED=120"
+set "INTERVALO_SPEED=185"
 set "NOME_SPEED=speedtest.exe"
 set "SPEEDARGS=--accept-license --accept-gdpr"
 
