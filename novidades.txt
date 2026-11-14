@@ -1,4 +1,4 @@
-LAUDO DE REDE v1063
+LAUDO DE REDE v1064
 - Corrigida a leitura de registros temporarios que desaparecem durante o encerramento normal dos trabalhadores.
 - Get-Content e ConvertFrom-Json agora permitem que o tratamento de erro existente intercepte essa situacao, sem imprimir mensagens de caminho nao encontrado.
 - Limpeza dos registros e sinais usa exclusao que aceita arquivo ja removido, evitando a mesma disputa durante o fechamento.
