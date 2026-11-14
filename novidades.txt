@@ -1,7 +1,11 @@
-LAUDO DE REDE v1057 - baseado no LAUDO_REDE1.bat v1056 fornecido.
+LAUDO DE REDE v1058 - baseado no LAUDO_REDE1.bat v1056 fornecido.
 - Mantida a estrutura, os testes, os destinos e a configuracao da versao recebida.
 - Corrigidas mensagens sobre [SAT]: perda total inclui o periodo do teste, enquanto a latencia geral usa amostras fora de [SAT].
 - Novo SOB_CARGA.txt e SOB_CARGA.csv: contagens, perda, RTT minimo/medio/maximo e maior rajada separados por periodo, incluindo comparacao de RTT medio.
 - Registro do tecnico ao final: live travou durante o teste, tambem fora, acompanhada sem travar ou nao acompanhada.
 - Travamento relatado destacado no laudo e no texto do Telegram; nao e apagado pela marca [SAT].
 - [SAT] nao confirma nem exclui defeito na ONU; o script nao monitora a live automaticamente.
+- Intervalo padrao entre rodadas do SPEEDTEST alterado de 120 para 185 segundos.
+- ENTER aceita 185 segundos. O tecnico pode digitar outro intervalo ao executar, mantendo a validacao existente.
+- Mantidas as demais funcoes e as melhorias SAT/live da v1057.
+
