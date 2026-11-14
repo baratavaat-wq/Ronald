@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1056"
+set "VER=1057"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -1267,12 +1267,12 @@ if /i "%SATURA%"=="S" (
   echo   qualquer conexao ^(cabo, 5 GHz ou 2.4 GHz^) - no 2.4 GHz
   echo   sobe mais ainda.
   echo.
-  echo   Isso NAO sera contado como falha: o laudo relativiza
-  echo   ping medio, maximo e jitter. Perda de pacotes continua
-  echo   valendo normalmente.
+  echo   [SAT] indica teste ativo; NAO descarta falha sob carga.
+  echo   Ping e perda sob carga terao uma analise separada.
+  echo   A perda total continua entrando na classificacao geral.
   echo.
-  echo   Enquanto o speedtest roda, e normal a navegacao ficar
-  echo   lenta ou travar - ele consome toda a banda de proposito.
+  echo   Se a live travar, registre ao final. Isso precisa ser
+  echo   investigado; o teste sozinho nao identifica defeito na ONU.
   echo.
   echo   Para um veredito de latencia limpo, rode um teste
   echo   SEM speedtest ^(de preferencia no cabo^).
@@ -1402,8 +1402,77 @@ echo $tg += "Tecnico: " + $tec >>"%PFALA%"
 echo $tg += "Cliente: " + $cli >>"%PFALA%"
 echo $tg += "O.S.: " + $os >>"%PFALA%"
 echo $tg += "Aparelhos: " + $apar >>"%PFALA%"
-echo if ($satur -eq 'S') { $tg += "OBS METODO: speedtest/fast rodaram em loop. As amostras colhidas DENTRO de cada rodada foram descartadas da analise (marcadas [SAT] no log) - ping alto e perda por saturacao nao entram na conta. O veredito usa so os intervalos livres entre as rodadas." } >>"%PFALA%"
-echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4 GHz com teste de velocidade - essa banda satura facil e disputa meio com vizinhos. Ping e perda sobem por isso, nao por defeito. Repetir em 5 GHz ou cabo." } >>"%PFALA%"
+echo if ($satur -eq 'S') { $tg += "OBS METODO: [SAT] marca Speedtest/Fast ativo. Ping medio/maximo e jitter gerais usam amostras fora de [SAT]; perda total inclui os dois periodos. Consulte SOB CARGA no ZIP. [SAT] nao descarta falha nem confirma defeito na ONU." } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4 GHz pode sofrer disputa do meio durante o teste. A origem da piora nao foi comprovada. Comparar em 5 GHz e no cabo." } >>"%PFALA%"
+echo # v1057: medidas sob carga preservadas, separadas da latencia fora de SAT. >>"%PFALA%"
+echo $carga = @('COMPARACAO FORA DE SAT / SOB CARGA - SPEEDTEST E FAST', '[SAT] indica teste ativo, nao comprova saturacao nem a causa de uma falha.', 'Fora de SAT pode incluir outros trafegos, inclusive ABA 9.', 'Enviados abaixo sao tentativas ICMP, nao trafego da live.', '') >>"%PFALA%"
+echo $csvCarga = @('alvo;periodo;enviados;respondidos;perdidos;perda_percentual;ping_min_ms;ping_medio_ms;ping_max_ms;maior_rajada') >>"%PFALA%"
+echo $temCarga = $false >>"%PFALA%"
+echo for ($k = 0; $k -lt $alvos.Count; $k = $k + 1) { >>"%PFALA%"
+echo     $pathCarga = Join-Path $pasta $alvos[$k] >>"%PFALA%"
+echo     if (-not (Test-Path $pathCarga)) { continue } >>"%PFALA%"
+echo     $amCarga = @(@{N=0; R=0; P=0; Seq=0; Raj=0; Lat=(New-Object Collections.ArrayList)}, @{N=0; R=0; P=0; Seq=0; Raj=0; Lat=(New-Object Collections.ArrayList)}) >>"%PFALA%"
+echo     $ultimoPeriodo = -1 >>"%PFALA%"
+echo     foreach ($linhaCarga in (Get-Content $pathCarga)) { >>"%PFALA%"
+echo         $txtCarga = [string]$linhaCarga >>"%PFALA%"
+echo         $periodo = 0 >>"%PFALA%"
+echo         if ($txtCarga.StartsWith('[SAT]')) { $periodo = 1 } >>"%PFALA%"
+echo         $falhou = $txtCarga -match '(?i)(encontrar o host^|find host^|esgotad^|timed out^|inacess^|unreachable^|falha ger^|general fail^|transmit fail)' >>"%PFALA%"
+echo         $rttCarga = -1 >>"%PFALA%"
+echo         if (-not $falhou -and $txtCarga -match '(?i)[=^<]\s*([0-9]+)\s*ms') { $rttCarga = [int]$Matches[1] } >>"%PFALA%"
+echo         if (-not $falhou -and $rttCarga -lt 0) { continue } >>"%PFALA%"
+echo         if ($periodo -ne $ultimoPeriodo) { $amCarga[0].Seq = 0; $amCarga[1].Seq = 0 } >>"%PFALA%"
+echo         $ultimoPeriodo = $periodo >>"%PFALA%"
+echo         $am = $amCarga[$periodo] >>"%PFALA%"
+echo         $am.N = $am.N + 1 >>"%PFALA%"
+echo         if ($falhou) { >>"%PFALA%"
+echo             $am.P = $am.P + 1; $am.Seq = $am.Seq + 1 >>"%PFALA%"
+echo             if ($am.Seq -gt $am.Raj) { $am.Raj = $am.Seq } >>"%PFALA%"
+echo         } else { >>"%PFALA%"
+echo             $am.R = $am.R + 1; $am.Seq = 0; [void]$am.Lat.Add($rttCarga) >>"%PFALA%"
+echo         } >>"%PFALA%"
+echo     } >>"%PFALA%"
+echo     if ($amCarga[1].N -gt 0) { $temCarga = $true } >>"%PFALA%"
+echo     $carga += '[' + $nomes[$k].ToUpper() + '] ' + $ends[$k] >>"%PFALA%"
+echo     for ($p = 0; $p -le 1; $p = $p + 1) { >>"%PFALA%"
+echo         $am = $amCarga[$p] >>"%PFALA%"
+echo         $rotulo = 'FORA DE SAT'; if ($p -eq 1) { $rotulo = 'SOB CARGA [SAT]' } >>"%PFALA%"
+echo         $minCarga = '-'; $medCarga = '-'; $maxCarga = '-'; $perCarga = '-' >>"%PFALA%"
+echo         if ($am.N -gt 0) { $perCarga = ([math]::Round(100.0 * $am.P / $am.N, 1)).ToString($ci) } >>"%PFALA%"
+echo         if ($am.R -gt 0) { >>"%PFALA%"
+echo             $statsCarga = $am.Lat ^| Measure-Object -Minimum -Maximum -Average >>"%PFALA%"
+echo             $minCarga = [string]$statsCarga.Minimum >>"%PFALA%"
+echo             $medCarga = ([math]::Round($statsCarga.Average, 1)).ToString($ci) >>"%PFALA%"
+echo             $maxCarga = [string]$statsCarga.Maximum >>"%PFALA%"
+echo         } >>"%PFALA%"
+echo         $carga += ('  {0}: enviados {1}; respondidos {2}; perdidos {3}; perda {4}%%; RTT min/medio/max {5}/{6}/{7} ms; maior rajada {8}.' -f $rotulo,$am.N,$am.R,$am.P,$perCarga,$minCarga,$medCarga,$maxCarga,$am.Raj) >>"%PFALA%"
+echo         if ($am.N -eq 0) { $carga += '  SEM AMOSTRAS neste periodo; nao permite aprovar nem reprovar.' } >>"%PFALA%"
+echo         $csvCarga += (@($nomes[$k],$rotulo,$am.N,$am.R,$am.P,$perCarga,$minCarga,$medCarga,$maxCarga,$am.Raj) -join ';') >>"%PFALA%"
+echo     } >>"%PFALA%"
+echo     if ($amCarga[0].R -gt 0 -and $amCarga[1].R -gt 0) { >>"%PFALA%"
+echo         $medFora = ($amCarga[0].Lat ^| Measure-Object -Average).Average >>"%PFALA%"
+echo         $medDentro = ($amCarga[1].Lat ^| Measure-Object -Average).Average >>"%PFALA%"
+echo         $deltaCarga = ([math]::Round($medDentro - $medFora, 1)).ToString($ci) >>"%PFALA%"
+echo         $carga += '  Diferenca de RTT medio sob carga menos fora de SAT: ' + $deltaCarga + ' ms. Comparacao indicativa, nao diagnostico da ONU.' >>"%PFALA%"
+echo     } >>"%PFALA%"
+echo     if ($amCarga[1].P -gt 0) { $carga += '  ATENCAO: houve perda ICMP durante o teste. Preservada para investigacao; [SAT] nao torna a perda inofensiva.' } >>"%PFALA%"
+echo     $carga += '' >>"%PFALA%"
+echo } >>"%PFALA%"
+echo $live = 'NAO ACOMPANHADA - o script nao monitora a reproducao/transmissao da live.' >>"%PFALA%"
+echo $obsLive = Join-Path $pasta 'OBSERVACAO_LIVE.txt' >>"%PFALA%"
+echo if (Test-Path $obsLive) { $live = (Get-Content $obsLive -Raw).Trim() } >>"%PFALA%"
+echo $liveTravou = ($live -match '^^TRAVOU') >>"%PFALA%"
+echo if ($satur -eq 'S' -and -not $temCarga) { $carga += 'ATENCAO: Speedtest/Fast habilitado, mas sem amostras [SAT] validas. Comportamento sob carga nao avaliado.' } >>"%PFALA%"
+echo $carga += 'LIVE - OBSERVACAO DO TECNICO: ' + $live >>"%PFALA%"
+echo $carga += 'Aptidao por ping e estimativa; nao mede bitrate, buffer, quadros perdidos nem o servidor da live.' >>"%PFALA%"
+echo $carga += 'Se a live trava sob carga, investigar disputa de banda, filas, Wi-Fi, capacidade do roteador/ONU, erros do enlace e caminho ate o servico. O teste nao isola a causa.' >>"%PFALA%"
+echo $carga += 'Comparar no cabo com e sem carga, separar download/upload, consultar erros/descartes, sinal optico e eventos da ONU/OLT. Em suspeita da ONU, repetir com equipamento conhecido bom mantendo as demais condicoes e verificar se a falha acompanha a troca.' >>"%PFALA%"
+echo $carga += 'Ping bom fora de SAT nao aprova uma live que travou; ping ruim sozinho nao confirma defeito fisico na ONU.' >>"%PFALA%"
+echo Set-Content -Path (Join-Path $pasta 'SOB_CARGA.txt') -Value $carga -Encoding UTF8 >>"%PFALA%"
+echo Set-Content -Path (Join-Path $pasta 'SOB_CARGA.csv') -Value $csvCarga -Encoding UTF8 >>"%PFALA%"
+echo if ($liveTravou) { $avisoLive = 'ATENCAO - LIVE TRAVOU, relatado pelo tecnico. Falha de uso a investigar; causa nao determinada. A nota geral nao aprova a live.' } >>"%PFALA%"
+echo else { $avisoLive = 'LIVE: ' + $live + ' A nota geral por ICMP nao garante qualidade da live sob carga.' } >>"%PFALA%"
+echo $tg += $avisoLive >>"%PFALA%"
 echo $tg += "Conexao: " + $conx >>"%PFALA%"
 echo $tg += "Gateway: " + $gwTxt + "   MAC: " + $macRot >>"%PFALA%"
 echo $tg += "PC: " + $env:COMPUTERNAME + "   Data: " + (Get-Date -Format "dd/MM/yyyy HH:mm") >>"%PFALA%"
@@ -1418,13 +1487,15 @@ echo $rel += "TECNICO .........: " + $tec >>"%PFALA%"
 echo $rel += "CLIENTE .........: " + $cli >>"%PFALA%"
 echo $rel += "CONEXAO USADA ...: " + $conx >>"%PFALA%"
 echo $rel += "DATA / HORA .....: " + (Get-Date -Format "dd/MM/yyyy HH:mm:ss") >>"%PFALA%"
-echo if ($satur -eq 'S') { $rel += "OBS METODO ......: speedtest/fast rodaram em loop durante a coleta. Cada rodada satura o link de proposito (bufferbloat: ping sobe e a fila cheia descarta ICMP). Por isso as amostras colhidas DENTRO de cada rodada foram MARCADAS ([SAT] no log de ping) e DESCARTADAS da analise. Os numeros deste laudo vem apenas dos intervalos livres entre as rodadas. Se sobrarem poucas amostras livres, o veredito fica limitado a ACEITAVEL por prudencia - nesse caso repita sem speedtest." } >>"%PFALA%"
-echo if ($satur -eq 'S' -and $conx -match '2\.4') { $rel += "OBS BANDA .......: Wi-Fi 2.4 GHz somado ao teste de velocidade. A banda de 2.4 GHz satura com facilidade e disputa o meio com vizinhos, micro-ondas e bluetooth: ping e perda sobem bastante durante o speedtest e isso NAO caracteriza defeito. Para avaliar o link, repita em 5 GHz ou no cabo, sem speedtest." } >>"%PFALA%"
+echo if ($satur -eq 'S') { $rel += "OBS METODO ......: [SAT] marca Speedtest/Fast ativo, sem comprovar saturacao efetiva. Ping medio/maximo e jitter gerais usam amostras fora de [SAT]. A perda percentual e total, incluindo [SAT]; rajadas gerais usam amostras fora de [SAT]. Com poucas amostras fora de [SAT], o codigo limita a penalizacao de latencia; isso NAO comprova qualidade. Consulte SOB CARGA para avaliar os periodos separadamente. Fora de [SAT] nao significa ausencia de outro trafego. A ABA 9 nao gera a marca [SAT]." } >>"%PFALA%"
+echo if ($satur -eq 'S' -and $conx -match '2\.4') { $rel += "OBS BANDA .......: Wi-Fi 2.4 GHz pode ter disputa do meio durante o teste. Ping/perda elevados exigem comparacao em 5 GHz e no cabo, com e sem carga; nao comprovam nem excluem defeito do equipamento." } >>"%PFALA%"
 echo $rel += "COMPUTADOR ......: " + $env:COMPUTERNAME >>"%PFALA%"
 echo $rel += "USUARIO .........: " + $env:USERNAME >>"%PFALA%"
 echo $rel += "DURACAO DO TESTE : " + $mins >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
+echo $rel += $carga >>"%PFALA%"
+echo $rel += "" >>"%PFALA%"
 echo $rel += "RESULTADO POR ALVO" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo $totTo = 0; $totHi = 0; $problemas = @(); $atencoes = @(); $suspeitos = @(); $reprovados = @(); $ruins = @(); $detalhe = "" >>"%PFALA%"
@@ -1524,6 +1595,7 @@ echo elseif ($to -gt 0) { $ana = $obs } >>"%PFALA%"
 echo elseif ($hi -gt 0) { $ana = "Sem perda, porem com picos de latencia (jitter). Pode travar voz e jogo." } >>"%PFALA%"
 echo else { $ana = "Estavel. Latencia dentro do esperado, sem perda e sem picos." } >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
+echo if ($satur -eq 'S') { $ana = 'Classificacao ICMP: ' + $classe + '. Perda total inclui SAT; latencia e rajadas gerais usam amostras fora de SAT. Consulte a comparacao SOB CARGA. Estes dados nao identificam nem excluem defeito na ONU ou mini ONU.' } >>"%PFALA%"
 echo $rel += "[" + $nomes[$i].ToUpper() + "]   alvo: " + $ends[$i] >>"%PFALA%"
 echo $rel += "   Pacotes enviados ...: " + $env >>"%PFALA%"
 echo $rel += "   Respondidos ........: " + $resp >>"%PFALA%"
@@ -1713,6 +1785,13 @@ echo if ($clsA[0] -eq "EXCELENTE") { $sinais += "gateway integro isola o trecho 
 echo if ($nIsoPerda -gt 0) { $sinais += "perda sem rajada continua" } >>"%PFALA%"
 echo if ($amostraRef -ge 300) { $sinais += "amostra suficiente (" + $amostraRef + " pacotes)" } >>"%PFALA%"
 echo } >>"%PFALA%"
+echo if ($satur -eq 'S') { >>"%PFALA%"
+echo     $diagT = @('Coleta com Speedtest/Fast: a classificacao geral combina perda total com latencia fora de SAT. Consulte a comparacao por periodo em SOB CARGA.', 'Uma piora sob carga pode envolver disputa de banda, filas ou limitacao/falha de equipamento. ICMP sozinho nao isola a causa nem aprova ou condena ONU/mini ONU.', $avisoLive) >>"%PFALA%"
+echo     $curto = 'Teste finalizado. Classificacao ICMP geral: ' + $ESC[$pioresc] + '. ' + $avisoLive >>"%PFALA%"
+echo     $conf = 'LIMITADA PARA IDENTIFICAR A CAUSA' >>"%PFALA%"
+echo     $confTxt = 'medidas ICMP e relato de uso nao identificam o componente responsavel' >>"%PFALA%"
+echo     $sinais = @('Comparar periodos fora de SAT e sob carga antes de localizar a falha.', 'Verificar equipamento com contadores/eventos e comparacao controlada; nao substituir diagnostico por marca SAT.') >>"%PFALA%"
+echo } >>"%PFALA%"
 echo $dg = @() >>"%PFALA%"
 echo $dg += "[TECNICO]" >>"%PFALA%"
 echo foreach ($x in $diagT) { $dg += $x } >>"%PFALA%"
@@ -1763,7 +1842,7 @@ echo if ($pMax -le 3 -and $rtt -le 300) { $sNav = "OK" } elseif ($pMax -le 5) { 
 echo $dg += "[APTIDAO POR SERVICO]" >>"%PFALA%"
 echo $dg += "  VoIP / chamada .........: " + $sVoip + "   limite: perda 1, jitter 30 ms, RTT 150 ms" >>"%PFALA%"
 echo $dg += "  Jogo online ............: " + $sJogo + "   limite: perda 0.5, jitter 20 ms, RTT 80 ms" >>"%PFALA%"
-echo $dg += "  Streaming / video ......: " + $sStr + "   limite: perda 2" >>"%PFALA%"
+echo $dg += "  Streaming / video ICMP .: " + $sStr + "   estimativa por ping; nao aprova live sob carga" >>"%PFALA%"
 echo $dg += "  Navegacao / trabalho ...: " + $sNav + "   limite: perda 3, RTT 300 ms" >>"%PFALA%"
 echo if ($eh24 -and ($totHi -gt 0 -or $perdaLan -gt 0)) { >>"%PFALA%"
 echo $dg += "" >>"%PFALA%"
@@ -1876,6 +1955,7 @@ echo $idxSeg = $pioresc; if ($idxSeg -lt 0) { $idxSeg = 0 }; if ($idxSeg -gt 6) 
 echo $topo += "  RESULTADO .: " + $ESC[$idxSeg] >>"%PFALA%"
 echo $topo += "  SCORE .....: " + $score + "/100 (" + $scLbl + ")" >>"%PFALA%"
 echo $topo += "  Confianca .: " + $conf >>"%PFALA%"
+echo $topo += "  " + $avisoLive >>"%PFALA%"
 echo $topo += "" >>"%PFALA%"
 echo $topo += "  " + $curto >>"%PFALA%"
 echo $topo += "=========================================================" >>"%PFALA%"
@@ -2421,6 +2501,23 @@ if defined FASTEXE  for %%A in ("%FASTEXE%")  do taskkill /F /IM "%%~nxA" >nul 2
 echo Aguardando os arquivos de log serem liberados...
 timeout /t 3 /nobreak >nul
 
+:: v1057 - relato humano da live, apos encerrar testes e antes do laudo.
+set "LIVE_RELATO=NAO ACOMPANHADA - o script nao monitora a live."
+if /i not "%SATURA%"=="S" goto LIVE_REGISTRAR
+echo.
+echo   LIVE DURANTE O ATENDIMENTO - observacao do tecnico
+echo   S = travou durante o teste de velocidade
+echo   F = travou tambem fora do teste de velocidade
+echo   N = foi acompanhada e nao travou
+echo   A = nao foi acompanhada
+choice /c SFNA /n /m "  Escolha S, F, N ou A: "
+set "LIVE_OP=%ERRORLEVEL%"
+if "%LIVE_OP%"=="1" set "LIVE_RELATO=TRAVOU DURANTE o teste de velocidade - relato do tecnico; causa nao determinada."
+if "%LIVE_OP%"=="2" set "LIVE_RELATO=TRAVOU TAMBEM FORA do teste de velocidade - relato do tecnico; causa nao determinada."
+if "%LIVE_OP%"=="3" set "LIVE_RELATO=ACOMPANHADA SEM TRAVAR neste atendimento - relato do tecnico."
+:LIVE_REGISTRAR
+>"%LAUDO%\OBSERVACAO_LIVE.txt" echo %LIVE_RELATO%
+
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
 
 if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%" "%APARELHOS%"
@@ -2765,7 +2862,8 @@ if not defined IA_KEY goto IA_SEM_CHAVE
 if /i "%IA_KEY%"=="x" goto IA_SEM_CHAVE
 
 :: monta um resumo curto do teste pra dar contexto a IA
-set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Equipamentos que o tecnico informou estarem no local: %APARELHOS% (isto NAO e contagem de dispositivos na rede). Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest rodando durante a coleta (S/N): %SATURA% - se S, ping alto e esperado por saturacao, nao conte como defeito. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. As medidas vem de ping (ICMP) e sao indicativas, nao equivalem ao trafego real. O jitter informado e a media das diferencas entre pacotes consecutivos (RFC 3550), nao a amplitude maximo menos minimo. Medicoes por destino a seguir:"
+set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Equipamentos que o tecnico informou estarem no local: %APARELHOS% (isto NAO e contagem de dispositivos na rede). Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest habilitado durante a coleta (S/N): %SATURA%. [SAT] marca teste ativo e NAO descarta falha sob carga. Ping geral usa amostras fora de [SAT] e perda geral inclui [SAT]. Leia SOB_CARGA.txt e OBSERVACAO_LIVE.txt. Travamento relatado pelo tecnico exige investigacao; nao confirme nem exclua defeito na ONU com ping apenas. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. As medidas vem de ping (ICMP) e sao indicativas, nao equivalem ao trafego real. O jitter informado e a media das diferencas entre pacotes consecutivos (RFC 3550), nao a amplitude maximo menos minimo. Medicoes por destino a seguir:"
+if exist "%LAUDO%\OBSERVACAO_LIVE.txt" for /f "usebackq delims=" %%L in ("%LAUDO%\OBSERVACAO_LIVE.txt") do set "CTX=!CTX! Relato do tecnico sobre a live: %%L"
 if exist "%LAUDO%\PERDA_PACOTES.csv" (
   for /f "usebackq skip=1 tokens=1,4,6,7,9 delims=;" %%a in ("%LAUDO%\PERDA_PACOTES.csv") do (
     set "CTX=!CTX! [destino %%a: perda %%b por cento, ping medio %%c ms, ping maximo %%d ms, classificacao %%e]"
