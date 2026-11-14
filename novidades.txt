@@ -1,11 +1,9 @@
-LAUDO DE REDE v1058 - baseado no LAUDO_REDE1.bat v1056 fornecido.
-- Mantida a estrutura, os testes, os destinos e a configuracao da versao recebida.
-- Corrigidas mensagens sobre [SAT]: perda total inclui o periodo do teste, enquanto a latencia geral usa amostras fora de [SAT].
-- Novo SOB_CARGA.txt e SOB_CARGA.csv: contagens, perda, RTT minimo/medio/maximo e maior rajada separados por periodo, incluindo comparacao de RTT medio.
-- Registro do tecnico ao final: live travou durante o teste, tambem fora, acompanhada sem travar ou nao acompanhada.
-- Travamento relatado destacado no laudo e no texto do Telegram; nao e apagado pela marca [SAT].
-- [SAT] nao confirma nem exclui defeito na ONU; o script nao monitora a live automaticamente.
-- Intervalo padrao entre rodadas do SPEEDTEST alterado de 120 para 185 segundos.
-- ENTER aceita 185 segundos. O tecnico pode digitar outro intervalo ao executar, mantendo a validacao existente.
-- Mantidas as demais funcoes e as melhorias SAT/live da v1057.
-
+LAUDO DE REDE v1062
+- Janelas secundarias usam cmd /c e encerram ao terminar; mantida abertura por start/cmd, sem lancador wt.exe nem redimensionamento.
+- Speedtest/Fast param ao finalizar, inclusive durante a espera entre rodadas. Processos acompanhados por PID e hora de inicio, sem varredura CIM ou taskkill global por nome.
+- Laudo so e gerado apos o encerramento dos trabalhadores e a gravacao dos logs.
+- VELOCIDADE.csv e VELOCIDADE_RESUMO.txt com download/upload, latencia ociosa/sob carga, jitter e perda quando presentes no log. Resultados incluidos em VEREDITO.txt e no texto do Telegram.
+- Rodadas concluidas, interrompidas, com erro ou sem metricas reconhecidas identificadas; ausencia de medida nao vira zero.
+- Pings exclusivamente SAT identificados como SOMENTE SOB CARGA; sem nota de latencia fora da carga quando faltam amostras.
+- Contagem total de respondidos corrigida e respostas tempo<1ms reconhecidas.
+- Mantidos intervalo Speedtest 185s e menu final laranja.
