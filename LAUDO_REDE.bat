@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1063"
+set "VER=1064"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -2813,12 +2813,18 @@ echo.
 echo  Rota salva em ROTA_tracert.txt
 echo.
 
-:: limpeza dos temporarios gerados por este laudo
-del "%PBEEP%" "%PFALA%" "%PWAIT%" "%PTG%" "%PNET%" "%PCHK%" "%PSAN%" "%PVER%" "%PCTRL%" "%PVEL%" "%PMET%" "%PFIM%" "%speed_BAT%" "%fast_BAT%" >nul 2>&1
-del "%LAUDO%\_sat_speed.flag" "%LAUDO%\_sat_fast.flag" >nul 2>&1
+:: Limpar somente nomes definidos e arquivos existentes. Nunca passar "" ao DEL.
+for %%V in (PBEEP PFALA PWAIT PTG PNET PCHK PSAN PVER PCTRL PVEL PMET PFIM speed_BAT fast_BAT) do if defined %%V (
+  if exist "!%%V!" if not exist "!%%V!\" del /q "!%%V!" >nul 2>&1
+)
+for %%F in ("%LAUDO%\_sat_speed.flag" "%LAUDO%\_sat_fast.flag") do if exist "%%~fF" del /q "%%~fF" >nul 2>&1
 rem Sinal desta coleta preservado em _controle para impedir novas rodadas.
-del "%TEMP%\speed_loop.bat" "%TEMP%\fast_loop.bat" "%TEMP%\lr_ver.ps1" "%TEMP%\lr_notas.txt" >nul 2>&1
-del "%TEMP%\srv_speed.ps1" "%TEMP%\srv_login.ps1" >nul 2>&1
+echo.
+if exist "%LAUDO%\VEREDITO.txt" (
+  echo Abrindo o laudo tecnico...
+  start "" notepad.exe "%LAUDO%\VEREDITO.txt"
+)
+echo Continuando para o assistente de IA...
 echo.
 
 :: =========================================================
