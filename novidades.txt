@@ -1,9 +1,6 @@
-LAUDO DE REDE v1062
-- Janelas secundarias usam cmd /c e encerram ao terminar; mantida abertura por start/cmd, sem lancador wt.exe nem redimensionamento.
-- Speedtest/Fast param ao finalizar, inclusive durante a espera entre rodadas. Processos acompanhados por PID e hora de inicio, sem varredura CIM ou taskkill global por nome.
-- Laudo so e gerado apos o encerramento dos trabalhadores e a gravacao dos logs.
-- VELOCIDADE.csv e VELOCIDADE_RESUMO.txt com download/upload, latencia ociosa/sob carga, jitter e perda quando presentes no log. Resultados incluidos em VEREDITO.txt e no texto do Telegram.
-- Rodadas concluidas, interrompidas, com erro ou sem metricas reconhecidas identificadas; ausencia de medida nao vira zero.
-- Pings exclusivamente SAT identificados como SOMENTE SOB CARGA; sem nota de latencia fora da carga quando faltam amostras.
-- Contagem total de respondidos corrigida e respostas tempo<1ms reconhecidas.
-- Mantidos intervalo Speedtest 185s e menu final laranja.
+LAUDO DE REDE v1063
+- Corrigida a leitura de registros temporarios que desaparecem durante o encerramento normal dos trabalhadores.
+- Get-Content e ConvertFrom-Json agora permitem que o tratamento de erro existente intercepte essa situacao, sem imprimir mensagens de caminho nao encontrado.
+- Limpeza dos registros e sinais usa exclusao que aceita arquivo ja removido, evitando a mesma disputa durante o fechamento.
+- Mesma correcao para o finalizador usado apos Ctrl+C, F ou termino do tempo.
+- Alteracoes restritas ao numero da versao e tratamento da leitura/limpeza dos registros temporarios. Mantidas abertura, metricas, fechamento dos testes, intervalo 185s e menu laranja.
