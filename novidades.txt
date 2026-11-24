@@ -1,21 +1,4 @@
-PUBLICACAO v1070
-Suba LAUDO_REDE.bat e novidades.txt primeiro; versao.txt por ultimo. Nada foi publicado automaticamente.
-
-APARELHOS
-Informe os equipamentos no caminho entre o PC de teste e a operadora. Menu:
-1 - Mini ONU FiberHome AN5506-01-A, nome pronto.
-2 - Outra ONU/ONT, com campo para modelo; ENTER mantem modelo nao informado.
-3 - Roteador, com campo para modelo; ENTER mantem modelo nao informado.
-4 - Outro aparelho, com digitacao obrigatoria.
-Tambem e possivel escrever o modelo diretamente. AN5506 ou nomes iniciados por ONU/ONT sao reconhecidos como ONU; para outros modelos de ONU, use a opcao 2 para garantir o tipo correto. Segundo aparelho: 0 ou ENTER para pular.
-
-PERDA
-Se qualquer aparelho informado for ONU/ONT, usa o perfil interno conservador. Nesse perfil, 2,5% e RUIM. Se nenhum for informado como ONU/ONT, mantem a escala geral anterior. As faixas completas estao em PERFIS_DE_PERDA.txt e no laudo. Selecionar o aparelho nao altera o valor medido; apenas escolhe o criterio de classificacao. Nao se trata de tolerancia publicada pela FiberHome ou por outro fabricante.
-
-Os resultados incluem PERFIL_TESTE.ini, PERFIL_PERDA.txt e observacoes de perfil no laudo/Telegram. Classificacao ICMP e indicativa: nao confirma defeito fisico da ONU. A perda bruta e preservada mesmo quando o gateway sugere limitacao de respostas ICMP. Score do perfil conservador respeita a faixa da classificacao. Sem amostras suficientes fora de SAT, a analise continua limitada.
-
-PRIVACIDADE E FUNCOES ANTERIORES
-Filme opcional permanece em filme.ini local, na pasta de config.ini e velocidade.ini, fora do pacote publico. Sem link, testes normais. Mantidos os 10 segundos iniciais, 15 segundos finais com A automatico e ausencia de abertura do Bloco de Notas. Mantida a regra existente de migracao de velocidade.ini ao mudar de versao; confira os dados da ABA 9 antes de distribuir.
-
-VALIDACAO
-Menus conferidos por entradas de arquivo e laudos sinteticos. Sem teste real de ONU, coleta de rede, reproducao de filme ou envio a IA/Telegram. Leia VALIDACAO.txt.
+LAUDO DE REDE v1072
+- Removida a funcao de abrir filme durante os testes.
+- O aviso inicial mostra a contagem para os testes de rede.
+- A pergunta sobre video ou live observados fica disponivel apos Speedtest ou Fast.
