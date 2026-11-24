@@ -1,4 +1,4 @@
-LAUDO DE REDE v1075
+LAUDO DE REDE v1078
 - Os monitores abrem sem esperar a preparacao do laudo e do Telegram.
 - Os avisos da preparacao deixam a coleta seguir sem pausa adicional.
 - A busca de Speedtest e Fast usa a pasta do BAT, PATH, Downloads e Area de Trabalho.
