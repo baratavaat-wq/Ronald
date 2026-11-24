@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1073"
+set "VER=1074"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -225,7 +225,7 @@ set "SRV_CONEX_UP=4"
 ::   ABA PRINCIPAL  -  cronometro, voz e veredito
 ::   TEMPO : o script PERGUNTA os MINUTOS ao rodar.
 ::           Abaixo so o valor PADRAO (ao dar ENTER)
-::   MUDA  : VOZ   = curto / longo / nao (sem fala no final)
+::   VOZ   : escolhida no inicio de cada teste
 ::   MUDA  : IPV6_NO_VEREDITO = 0 nao reprova / 1 reprova
 ::   MUDA  : TESTAR_IPV6 = auto / sim / nao
 :: +=======================================================+
@@ -311,6 +311,24 @@ if defined IPV6_USADO set "TEM_IPV6=1"
 if /i "%TESTAR_IPV6%"=="sim" set "TEM_IPV6=1"
 if /i "%TESTAR_IPV6%"=="sim" if not defined IPV6_USADO set "IPV6_USADO=%ALVO_IPV6%"
 
+:: OPCAO DE VOZ PARA ESTA EXECUCAO
+:ESCOLHER_VOZ
+set "VOZ_ESCOLHA="
+echo.
+echo  VOZ NO FINAL DO TESTE
+echo    1 - Ler o resumo em voz alta
+echo    2 - Ler os resultados por destino
+echo    3 - Sem voz
+set /p "VOZ_ESCOLHA=  Escolha 1, 2 ou 3 [ENTER = sem voz]: "
+set "VOZ_MODO=nao"
+if "!VOZ_ESCOLHA!"=="1" set "VOZ_MODO=curto"
+if "!VOZ_ESCOLHA!"=="2" set "VOZ_MODO=longo"
+if "!VOZ_ESCOLHA!"=="" goto PERGUNTA_TECNICO
+if "!VOZ_ESCOLHA!"=="3" goto PERGUNTA_TECNICO
+if not "!VOZ_MODO!"=="nao" goto PERGUNTA_TECNICO
+echo   Escolha uma opcao de 1 a 3.
+goto ESCOLHER_VOZ
+
 :: =========================================================
 :: PERGUNTA 1 - NOME DO TECNICO (obrigatorio, so 1o nome)
 :: =========================================================
@@ -366,29 +384,6 @@ if not defined OS_ID goto PERGUNTA_OS
 set "OS_ID=%OS_ID:"=%"
 if not defined OS_ID goto PERGUNTA_OS
 
-:: =========================================================
-:: PERGUNTA 4 - APARELHOS NO LOCAL (1 obrigatorio, 2o opcional)
-:: =========================================================
-:PERGUNTA_APAR
-echo.
-echo  APARELHOS NO CAMINHO DO TESTE
-echo  Informe os equipamentos entre o PC de teste e a operadora.
-call :LR_ESCOLHER_APARELHO APAR1 OBRIGATORIO
-call :LR_ESCOLHER_APARELHO APAR2 OPCIONAL
-set "APARELHOS=%APAR1%"
-if defined APAR2 set "APARELHOS=%APAR1% + %APAR2%"
-set "PERFIL_PERDA=GERAL"
-for %%T in (ONU ROTEADOR ONT_INTEGRADA) do (
-  if /i "%APAR1_TIPO%"=="%%T" set "PERFIL_PERDA=CONSERVADOR"
-  if /i "%APAR2_TIPO%"=="%%T" set "PERFIL_PERDA=CONSERVADOR"
-)
-echo.
-echo  Aparelhos informados: %APARELHOS%
-echo  Perfil de perda selecionado: %PERFIL_PERDA%
-if /i "%PERFIL_PERDA%"=="CONSERVADOR" echo  Criterio de perda para roteador, ONU e ONT: 2,5 por cento = RUIM.
-echo  O modelo informado nao comprova a origem de uma falha.
-echo.
-
 :: nome do cliente limpo, para usar no nome da pasta
 set "PSAN=%TEMP%\sanit.ps1"
 del "%PSAN%" >nul 2>&1
@@ -424,9 +419,7 @@ if exist "%BASE_LAUDOS%\_t.tmp" (
 )
 set "LAUDO=!BASE_LAUDOS!\LAUDO_%TECNICO%_OS-%OS_PASTA%_%CLI_PASTA%_%STAMP%"
 mkdir "%LAUDO%" >nul 2>&1
->"%LAUDO%\PERFIL_TESTE.ini" echo PERFIL_PERDA=%PERFIL_PERDA%
->>"%LAUDO%\PERFIL_TESTE.ini" echo APAR1_TIPO=%APAR1_TIPO%
->>"%LAUDO%\PERFIL_TESTE.ini" echo APAR2_TIPO=%APAR2_TIPO%
+>"%LAUDO%\PERFIL_TESTE.ini" echo PERFIL_PERDA=GLOBAL
 set "CTL=%LAUDO%\_controle"
 mkdir "%CTL%" >nul 2>&1
 
@@ -721,7 +714,7 @@ cls
 echo =====================================================
 echo          LAUDO COMPLETO DE REDE v%VER%
 echo          Tecnico: %TECNICO%   Cliente: %CLIENTE%
-echo          O.S.: %OS_ID%   Aparelhos: %APARELHOS%
+echo          O.S.: %OS_ID%   Perfil de perda: GLOBAL
 echo =====================================================
 echo.
 echo  Pasta do laudo    : %LAUDO%
@@ -749,7 +742,7 @@ echo INICIO         : %date% %time%
 echo TECNICO        : %TECNICO%
 echo CLIENTE        : %CLIENTE%
 echo O.S.           : %OS_ID%
-echo APARELHOS      : %APARELHOS%
+echo PERFIL DE PERDA: GLOBAL
 echo CONEXAO        : %CONEXAO%
 echo DURACAO        : %MINUTOS% minutos ^(planejado^)
 echo COMPUTADOR     : %COMPUTERNAME%
@@ -1439,26 +1432,23 @@ echo exit 0 >>"%PBEEP%"
 :: =========================================================
 set "PFALA=%TEMP%\falar_status_%STAMP%_%RANDOM%.ps1"
 del "%PFALA%" >nul 2>&1
-echo param($pasta, $modo, $ipv6Conta, $temIpv6, $mins, $tec, $cli, $conx, $aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6, $lRot, $lInt, $lSrv, $lIp6, $lExt, $lExt6, $os, $apar, $satur, $gwTxt, $macRot) >>"%PFALA%"
-echo if (-not $modo) { $modo = "curto" } >>"%PFALA%"
-echo $voz = $null # fala desativada >>"%PFALA%"
+echo param($pasta, $modo, $ipv6Conta, $temIpv6, $mins, $tec, $cli, $conx, $aRot, $aInt, $aSrv, $aIp6, $aExt, $aExt6, $lRot, $lInt, $lSrv, $lIp6, $lExt, $lExt6, $os, $satur, $gwTxt, $macRot) >>"%PFALA%"
 echo $ci = [System.Globalization.CultureInfo]::InvariantCulture >>"%PFALA%"
 echo $ESC = @("EXCELENTE","BOM","ACEITAVEL","RUIM","REPROVADO","PROBLEMA DETECTADO","PROBLEMA GRAVE") >>"%PFALA%"
 echo function NotaMed($v) { if ($v -lt 0) { return -1 }; if ($v -le 50) { return 0 }; if ($v -le 100) { return 1 }; if ($v -le 150) { return 2 }; if ($v -le 200) { return 3 }; return 4 } >>"%PFALA%"
 echo function NotaMax($v) { if ($v -lt 0) { return -1 }; if ($v -le 150) { return 0 }; if ($v -le 300) { return 1 }; if ($v -le 600) { return 2 }; if ($v -le 1000) { return 3 }; return 4 } >>"%PFALA%"
 echo function NotaJit($v) { if ($v -lt 0) { return -1 }; if ($v -le 5) { return 0 }; if ($v -le 10) { return 1 }; if ($v -le 20) { return 2 }; if ($v -le 50) { return 3 }; return 4 } >>"%PFALA%"
-echo $perfilConservador=$false >>"%PFALA%"
-echo $perfilArquivo=Join-Path $pasta 'PERFIL_TESTE.ini' >>"%PFALA%"
-echo if(Test-Path $perfilArquivo){$perfilConservador=([string](Get-Content $perfilArquivo -Raw) -match '(?m)^^PERFIL_PERDA=(?:CONSERVADOR^|FTTH)\s*$')} >>"%PFALA%"
-echo $perfilNome=if($perfilConservador){'CONSERVADOR - roteador, ONU e ONT'}else{'GERAL - escala padrao'} >>"%PFALA%"
+echo $perfilNome='GLOBAL - todos os aparelhos' >>"%PFALA%"
 echo $perfilNota='A escala classifica a perda ICMP observada. Para atribuir a perda a um aparelho, compare os destinos e confirme em outro teste.' >>"%PFALA%"
-echo $perfilTabela=if($perfilConservador){'Perda ICMP: 0%% EXCELENTE; ^>0 ate 0,5%% BOM; ^>0,5 ate 1%% ACEITAVEL; ^>1 ate 2,5%% RUIM; ^>2,5 ate 5%% REPROVADO; ^>5 ate 10%% PROBLEMA DETECTADO; ^>10%% PROBLEMA GRAVE.'}else{'Perda ICMP: 0%% EXCELENTE; ^>0 ate 1%% BOM; ^>1 ate 2,5%% ACEITAVEL; ^>2,5 ate 5%% RUIM; ^>5 ate 10%% REPROVADO; ^>10 ate 25%% PROBLEMA DETECTADO; ^>25%% PROBLEMA GRAVE.'} >>"%PFALA%"
+echo $perfilTabela='Perda ICMP: 0%% EXCELENTE; ^>0 ate 0,5%% BOM; ^>0,5 ate 1%% ACEITAVEL; ^>1 ate 2,5%% RUIM; ^>2,5 ate 5%% REPROVADO; ^>5 ate 10%% PROBLEMA DETECTADO; ^>10%% PROBLEMA GRAVE.' >>"%PFALA%"
 echo function NotaPer($p) { >>"%PFALA%"
-echo     if($p -le 0){return 0} >>"%PFALA%"
-echo     if($perfilConservador){ >>"%PFALA%"
-echo         if($p -le 0.5){return 1};if($p -le 1){return 2};if($p -le 2.5){return 3};if($p -le 5){return 4};if($p -le 10){return 5};return 6 >>"%PFALA%"
-echo     } >>"%PFALA%"
-echo     if($p -le 1){return 1};if($p -le 2.5){return 2};if($p -le 5){return 3};if($p -le 10){return 4};if($p -le 25){return 5};return 6 >>"%PFALA%"
+echo     if ($p -le 0) { return 0 } >>"%PFALA%"
+echo     if ($p -le 0.5) { return 1 } >>"%PFALA%"
+echo     if ($p -le 1) { return 2 } >>"%PFALA%"
+echo     if ($p -le 2.5) { return 3 } >>"%PFALA%"
+echo     if ($p -le 5) { return 4 } >>"%PFALA%"
+echo     if ($p -le 10) { return 5 } >>"%PFALA%"
+echo     return 6 >>"%PFALA%"
 echo } >>"%PFALA%"
 echo Set-Content -Path (Join-Path $pasta 'PERFIL_PERDA.txt') -Value @($perfilNome,$perfilTabela,$perfilNota) -Encoding UTF8 >>"%PFALA%"
 echo $alvos = @("ping_modem.txt","ping_internet.txt","ping_servidor.txt","ping_ipv6.txt","ping_extra.txt","ping_extra6.txt") >>"%PFALA%"
@@ -1515,7 +1505,6 @@ echo $tg += "LAUDO DE REDE" >>"%PFALA%"
 echo $tg += "Tecnico: " + $tec >>"%PFALA%"
 echo $tg += "Cliente: " + $cli >>"%PFALA%"
 echo $tg += "O.S.: " + $os >>"%PFALA%"
-echo $tg += "Aparelhos: " + $apar >>"%PFALA%"
 echo $tg += "Perfil de perda: " + $perfilNome >>"%PFALA%"
 echo $tg += $perfilNota >>"%PFALA%"
 echo if ($satur -eq 'S') { $tg += "OBS METODO: [SAT] marca Speedtest/Fast ativo. Ping medio/maximo e jitter gerais usam amostras fora de [SAT]; perda total inclui os dois periodos. Consulte SOB CARGA no ZIP. [SAT] nao descarta falha nem confirma defeito na ONU." } >>"%PFALA%"
@@ -1608,7 +1597,6 @@ echo $rel += "" >>"%PFALA%"
 echo $rel += "TECNICO .........: " + $tec >>"%PFALA%"
 echo $rel += "CLIENTE .........: " + $cli >>"%PFALA%"
 echo $rel += "CONEXAO USADA ...: " + $conx >>"%PFALA%"
-echo $rel += "APARELHOS .......: " + $apar >>"%PFALA%"
 echo $rel += "PERFIL DE PERDA .: " + $perfilNome >>"%PFALA%"
 echo $rel += $perfilNota >>"%PFALA%"
 echo $rel += "DATA / HORA .....: " + (Get-Date -Format "dd/MM/yyyy HH:mm:ss") >>"%PFALA%"
@@ -1671,14 +1659,11 @@ echo if ($i -eq 0 -and $pct -gt 2) { >>"%PFALA%"
 echo $piorFora = -1 >>"%PFALA%"
 echo for ($k = 1; $k -le 5; $k = $k + 1) { if ($evA[$k] -ge 0 -and $envA[$k] -gt 0 -and $pctA[$k] -gt $piorFora) { $piorFora = $pctA[$k] } } >>"%PFALA%"
 echo if ($piorFora -ge 0 -and $pct -ge (($piorFora * 3) + 2)) { >>"%PFALA%"
-echo if (-not $perfilConservador -and $nPer -gt 2) { $nPer = 2 } >>"%PFALA%"
-echo if (-not $perfilConservador -and $nRaj -gt 2) { $nRaj = 2 } >>"%PFALA%"
-echo $obs = "o gateway deixou de responder " + $pctTxt + " por cento dos pings, porem os destinos externos - cujo trafego PASSA por ele - perderam apenas " + $piorFora + " por cento. Perda real no trecho PC-roteador atingiria tambem os externos, entao isto e limitacao de resposta ICMP do proprio roteador e NAO perda de trafego. Nao condena o equipamento." >>"%PFALA%"
+echo $obs = 'O gateway deixou de responder mais que os destinos externos. Pode haver limitacao de resposta ICMP; isso nao comprova perda do trafego encaminhado. Confira a perda em outros destinos e compare com um teste por cabo antes de atribuir o resultado ao aparelho.' >>"%PFALA%"
 echo } >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $envLimpo -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($obs -eq "") { $obs = "sobraram poucas amostras livres de saturacao (" + $env + " pings limpos) - veredito limitado a ACEITAVEL por prudencia; repita sem speedtest para julgar latencia." } } >>"%PFALA%"
 echo if ($satur -eq 'S' -and $env -lt 60) { if ($nMed -gt 2) { $nMed = 2 }; if ($nMax -gt 2) { $nMax = 2 }; if ($nJit -gt 2) { $nJit = 2 }; if ($nRaj -gt 2) { $nRaj = 2 } } >>"%PFALA%"
-echo if($perfilConservador -and $i -eq 0 -and $pct -gt 2 -and $piorFora -ge 0 -and $pct -ge (($piorFora*3)+2)){$obs='O gateway deixou de responder mais que os destinos externos. Pode haver limitacao de resposta ICMP; isso nao comprova perda do trafego encaminhado. Confira a perda em outros destinos e compare com um teste por cabo antes de atribuir o resultado ao aparelho.'} >>"%PFALA%"
 echo $pior = $nRaj >>"%PFALA%"
 echo $quem = "rajada/perda continua" >>"%PFALA%"
 echo if ($ev -eq 1) { $quem = "perda de pacotes" } >>"%PFALA%"
@@ -1726,7 +1711,7 @@ echo elseif ($hi -gt 0) { $ana = "Sem perda, porem com picos de latencia (jitter
 echo else { $ana = "Estavel. Latencia dentro do esperado, sem perda e sem picos." } >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo if ($satur -eq 'S') { $ana = 'Classificacao ICMP: ' + $classe + '. Perda total inclui SAT; latencia e rajadas gerais usam amostras fora de SAT. Consulte a comparacao SOB CARGA. Estes dados nao identificam nem excluem defeito na ONU ou mini ONU.' } >>"%PFALA%"
-echo if($perfilConservador -and $evA[$i] -ge 0){$obs=$obs -replace 'perda continua real, nao e limite de ICMP','padrao de perda ICMP a confirmar nos contadores e nos servicos';$ana='Resultado ICMP '+$classe+$puxou+'. Compare os alvos pelo cabo e pelo Wi-Fi para localizar a perda. '+$obs} >>"%PFALA%"
+echo if($evA[$i] -ge 0){$obs=$obs -replace 'perda continua real, nao e limite de ICMP','padrao de perda ICMP a confirmar nos contadores e nos servicos';$ana='Resultado ICMP '+$classe+$puxou+'. Compare os alvos pelo cabo e pelo Wi-Fi para localizar a perda. '+$obs} >>"%PFALA%"
 echo $rel += "[" + $nomes[$i].ToUpper() + "]   alvo: " + $ends[$i] >>"%PFALA%"
 echo $rel += "   Pacotes enviados ...: " + $env >>"%PFALA%"
 echo $rel += "   Respondidos total ..: " + ($env - $to) >>"%PFALA%"
@@ -1803,7 +1788,12 @@ echo if ($rajMaxA[$refI] -ge 3) { $compRaj = 0 } elseif ($rajMaxA[$refI] -eq 2) 
 echo $score = [math]::Round($compPer + $compLat + $compJit + $compRaj) >>"%PFALA%"
 echo if ($score -lt 0) { $score = 0 }; if ($score -gt 100) { $score = 100 } >>"%PFALA%"
 echo if ($pioresc -ge 4) { if ($score -gt 40) { $score = 40 } } elseif ($pioresc -eq 3) { if ($score -gt 60) { $score = 60 } } elseif ($pioresc -eq 2) { if ($score -gt 75) { $score = 75 } } >>"%PFALA%"
-echo if($perfilConservador){$cap=100;if($pioresc -eq 1){$cap=89}elseif($pioresc -eq 2){$cap=74}elseif($pioresc -eq 3){$cap=59}elseif($pioresc -ge 4){$cap=39};$score=[math]::Min($score,$cap)} >>"%PFALA%"
+echo $cap = 100 >>"%PFALA%"
+echo if ($pioresc -eq 1) { $cap = 89 } >>"%PFALA%"
+echo elseif ($pioresc -eq 2) { $cap = 74 } >>"%PFALA%"
+echo elseif ($pioresc -eq 3) { $cap = 59 } >>"%PFALA%"
+echo elseif ($pioresc -ge 4) { $cap = 39 } >>"%PFALA%"
+echo $score = [math]::Min($score,$cap) >>"%PFALA%"
 echo if ($score -ge 90) { $scLbl = "EXCELENTE" } elseif ($score -ge 75) { $scLbl = "BOM" } elseif ($score -ge 60) { $scLbl = "ACEITAVEL" } elseif ($score -ge 40) { $scLbl = "RUIM" } else { $scLbl = "CRITICO" } >>"%PFALA%"
 echo $perdaLanB = $pctA[0] >>"%PFALA%"
 echo $perdaForaB = [math]::Max([math]::Max([math]::Max($pctA[1], $pctA[2]), [math]::Max($pctA[3], $pctA[4])), $pctA[5]) >>"%PFALA%"
@@ -1925,13 +1915,11 @@ echo     $conf = 'LIMITADA PARA IDENTIFICAR A CAUSA' >>"%PFALA%"
 echo     $confTxt = 'medidas ICMP e relato de uso nao identificam o componente responsavel' >>"%PFALA%"
 echo     $sinais = @('Comparar periodos fora de SAT e sob carga antes de localizar a falha.', 'Verificar equipamento com contadores/eventos e comparacao controlada; nao substituir diagnostico por marca SAT.') >>"%PFALA%"
 echo } >>"%PFALA%"
-echo if($perfilConservador){ >>"%PFALA%"
-echo     $diagT=@('Aparelhos informados: '+$apar+'. Perfil de perda: '+$perfilNome+'.','A classificacao segue o criterio interno de perda ICMP. O resultado deve ser confirmado antes de atribuir a perda a um aparelho.','Compare cabo, Wi-Fi e os destinos. Se houver ONU/ONT, consulte tambem os contadores e alarmes da fibra.', $avisoLive) >>"%PFALA%"
-echo     $curto='Classificacao ICMP do teste: '+$ESC[$pioresc]+'. Perfil conservador de perda. Veja o resultado por alvo para investigar a causa. '+$avisoLive >>"%PFALA%"
-echo     $conf='LIMITADA PARA IDENTIFICAR A CAUSA' >>"%PFALA%"
-echo     $confTxt='modelo selecionado e ping nao identificam o componente responsavel' >>"%PFALA%"
-echo     $sinais = @('Confirme a origem da perda comparando as respostas do gateway e dos destinos externos.') >>"%PFALA%"
-echo } >>"%PFALA%"
+echo $diagT = @('Perfil global de perda.','Compare cabo, Wi-Fi e os destinos para localizar a origem da perda. Se houver ONU/ONT, consulte os contadores e alarmes da fibra.', $avisoLive) >>"%PFALA%"
+echo $curto = 'Classificacao do teste: '+$ESC[$pioresc]+'. Veja o resultado por alvo para investigar a causa. '+$avisoLive >>"%PFALA%"
+echo $conf = 'LIMITADA PARA IDENTIFICAR A CAUSA' >>"%PFALA%"
+echo $confTxt = 'ping indica a perda por destino' >>"%PFALA%"
+echo $sinais = @('Confirme a origem comparando as respostas do gateway e dos destinos externos.') >>"%PFALA%"
 echo $dg = @() >>"%PFALA%"
 echo $dg += "[TECNICO]" >>"%PFALA%"
 echo foreach ($x in $diagT) { $dg += $x } >>"%PFALA%"
@@ -2007,7 +1995,7 @@ echo $rel += "DIAGNOSTICO" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo foreach ($x in $dg) { $rel += $x } >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
-echo $rel += "VEREDITO FALADO: " + $curto >>"%PFALA%"
+echo $rel += "RESUMO DO VEREDITO: " + $curto >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo $rel += "TABELA DE REFERENCIA - NOTA COMPOSTA (o PIOR criterio define a nota)" >>"%PFALA%"
@@ -2122,12 +2110,27 @@ echo $tgTxt = ($tg -join "`r`n") >>"%PFALA%"
 echo if ($tgTxt.Length -gt 3800) { $tgTxt = $tgTxt.Substring(0,3800) + "`r`n...(cortado - veja o ZIP)" } >>"%PFALA%"
 echo Set-Content -Path (Join-Path $pasta "TELEGRAM.txt") -Value $tgTxt -Encoding UTF8 >>"%PFALA%"
 echo $longo = "Teste de rede finalizado. " + $detalhe + $curto >>"%PFALA%"
-echo if ($modo -eq "longo") { $fala = $longo } else { $fala = $curto } >>"%PFALA%"
+echo $fala = if ($modo -eq "longo") { $longo } else { $curto } >>"%PFALA%"
 echo Write-Host "" >>"%PFALA%"
 echo Write-Host ($diagT -join " ") -ForegroundColor Yellow >>"%PFALA%"
 echo Write-Host ("Confianca: " + $conf) -ForegroundColor Magenta >>"%PFALA%"
 echo Write-Host $curto -ForegroundColor Green >>"%PFALA%"
-echo # fala desativada a pedido do usuario (sem Speak) >>"%PFALA%"
+echo if ($modo -in @('curto','longo')) { >>"%PFALA%"
+echo     $voz = $null >>"%PFALA%"
+echo     try { >>"%PFALA%"
+echo         Write-Host 'Lendo o resultado do teste...' >>"%PFALA%"
+echo         Add-Type -AssemblyName System.Speech -ErrorAction Stop >>"%PFALA%"
+echo         $voz = New-Object System.Speech.Synthesis.SpeechSynthesizer -ErrorAction Stop >>"%PFALA%"
+echo         $vozBrasil = $voz.GetInstalledVoices() ^| Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -eq 'pt-BR' } ^| Select-Object -First 1 >>"%PFALA%"
+echo         if ($vozBrasil) { $voz.SelectVoice($vozBrasil.VoiceInfo.Name) } >>"%PFALA%"
+echo         $voz.SetOutputToDefaultAudioDevice() >>"%PFALA%"
+echo         $voz.Speak($fala) >>"%PFALA%"
+echo     } catch { >>"%PFALA%"
+echo         Write-Warning 'A leitura em voz alta ficou indisponivel. Confira o resultado salvo no laudo.' >>"%PFALA%"
+echo     } finally { >>"%PFALA%"
+echo         if ($voz) { $voz.Dispose() } >>"%PFALA%"
+echo     } >>"%PFALA%"
+echo } >>"%PFALA%"
 
 :: =========================================================
 :: ENVIO PARA O TELEGRAM (tg_send.ps1)
@@ -2136,7 +2139,7 @@ echo # fala desativada a pedido do usuario (sem Speak) >>"%PFALA%"
 :: =========================================================
 set "PTG=%TEMP%\tg_send_%STAMP%_%RANDOM%.ps1"
 del "%PTG%" >nul 2>&1
-echo param($pasta, $tec, $cliNome, $os, $apar) >>"%PTG%"
+echo param($pasta, $tec, $cliNome, $os) >>"%PTG%"
 echo $token = "%TG_TOKEN%" >>"%PTG%"
 echo $chat  = "%TG_CHAT%" >>"%PTG%"
 echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PTG%"
@@ -2222,7 +2225,7 @@ echo Write-Host ("  Conexao  : " + $conx) >>"%PWAIT%"
 echo Write-Host ("  Teste de : " + $mins + " minutos") >>"%PWAIT%"
 echo Write-Host ("  TEMPO RESTANTE: " + ("{0:00}:{1:00}" -f $m, $s)) >>"%PWAIT%"
 echo Write-Host ("") >>"%PWAIT%"
-echo Write-Host "  Aperte  F  para encerrar agora, falar e enviar ao Telegram." -ForegroundColor Green >>"%PWAIT%"
+echo Write-Host "  Aperte F para encerrar agora e gerar o laudo." -ForegroundColor Green >>"%PWAIT%"
 echo Write-Host "  Ctrl+C aborta tudo e NAO gera laudo nem envia nada." -ForegroundColor Yellow >>"%PWAIT%"
 echo Write-Host "=====================================================" >>"%PWAIT%"
 echo $t0 = Get-Date >>"%PWAIT%"
@@ -2843,7 +2846,7 @@ if "%LIVE_OP%"=="3" set "LIVE_RELATO=ACOMPANHADA SEM TRAVAR neste atendimento - 
 :LIVE_REGISTRAR
 >"%LAUDO%\OBSERVACAO_LIVE.txt" echo %LIVE_RELATO%
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%APARELHOS%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
 if errorlevel 1 (
   echo [ERRO] Falha ao gerar o laudo. Os logs brutos foram preservados.
   pause
@@ -2855,7 +2858,7 @@ if not exist "%LAUDO%\VEREDITO.txt" (
   exit /b 1
 )
 
-if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%" "%APARELHOS%"
+if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%"
 
 :: TELA FINAL
 echo.
@@ -3202,9 +3205,9 @@ if not defined IA_KEY goto IA_SEM_CHAVE
 if /i "%IA_KEY%"=="x" goto IA_SEM_CHAVE
 
 :: monta um resumo curto do teste pra dar contexto a IA
-set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Equipamentos que o tecnico informou estarem no local: %APARELHOS% (isto NAO e contagem de dispositivos na rede). Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest habilitado durante a coleta (S/N): %SATURA%. [SAT] marca teste ativo e NAO descarta falha sob carga. Ping geral usa amostras fora de [SAT] e perda geral inclui [SAT]. Leia SOB_CARGA.txt e OBSERVACAO_LIVE.txt. Travamento relatado pelo tecnico exige investigacao; nao confirme nem exclua defeito na ONU com ping apenas. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. As medidas vem de ping (ICMP) e sao indicativas, nao equivalem ao trafego real. O jitter informado e a media das diferencas entre pacotes consecutivos (RFC 3550), nao a amplitude maximo menos minimo. Medicoes por destino a seguir:"
+set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest habilitado durante a coleta (S/N): %SATURA%. [SAT] marca teste ativo e NAO descarta falha sob carga. Ping geral usa amostras fora de [SAT] e perda geral inclui [SAT]. Leia SOB_CARGA.txt e OBSERVACAO_LIVE.txt. Travamento relatado pelo tecnico exige investigacao; nao confirme nem exclua defeito na ONU com ping apenas. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. As medidas vem de ping (ICMP) e sao indicativas, nao equivalem ao trafego real. O jitter informado e a media das diferencas entre pacotes consecutivos (RFC 3550), nao a amplitude maximo menos minimo. Medicoes por destino a seguir:"
 if exist "%LAUDO%\OBSERVACAO_LIVE.txt" for /f "usebackq delims=" %%L in ("%LAUDO%\OBSERVACAO_LIVE.txt") do set "CTX=!CTX! Relato do tecnico sobre a live: %%L"
-set "CTX=!CTX! Perfil interno de perda: %PERFIL_PERDA%. O perfil CONSERVADOR considera 2,5 por cento de perda ICMP RUIM para roteador, ONU ou ONT. Use a classificacao por destino para avaliar o teste. Para atribuir a perda ao aparelho, solicite comparacao por cabo/Wi-Fi e entre destinos."
+set "CTX=!CTX! Perfil global de perda. A escala do laudo considera 2,5 por cento de perda ICMP RUIM para qualquer aparelho. Use a classificacao por destino para avaliar o teste. Para atribuir a perda ao aparelho, solicite comparacao por cabo/Wi-Fi e entre destinos."
 if exist "%LAUDO%\PERDA_PACOTES.csv" (
   for /f "usebackq skip=1 tokens=1,4,6,7,9 delims=;" %%a in ("%LAUDO%\PERDA_PACOTES.csv") do (
     set "CTX=!CTX! [destino %%a: perda %%b por cento, ping medio %%c ms, ping maximo %%d ms, classificacao %%e]"
@@ -4739,82 +4742,6 @@ goto :eof
 :GW_VALIDA_IP
 echo %~1| findstr /r /c:"^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >nul && set "GW=%~1"
 goto :eof
-
-:: Selecao por numero ou digitacao livre.
-:LR_ESCOLHER_APARELHO
-set "LR_SEL_DEST=%~1"
-set "LR_SEL_MODO=%~2"
-:LR_SEL_REPETIR
-set "LR_SEL_NOME="
-set "LR_SEL_TIPO="
-set "LR_SEL_ENTRADA="
-echo.
-echo  ----------------------------------------------------
-if /i "%LR_SEL_MODO%"=="OBRIGATORIO" echo  APARELHO 1 - escolha ou digite o modelo
-if /i "%LR_SEL_MODO%"=="OPCIONAL" echo  APARELHO 2 - escolha ou digite o modelo
-echo    1 - Mini ONU FiberHome AN5506-01-A
-echo    2 - Outra ONU/ONT - informar modelo
-echo    3 - Roteador - informar modelo
-echo    4 - Outro aparelho - digitar
-echo    5 - ONT com roteador integrado - informar modelo
-if /i "%LR_SEL_MODO%"=="OPCIONAL" echo    0 ou ENTER - nao tem segundo aparelho
-set /p "LR_SEL_ENTRADA=  Opcao / modelo: "
-if not defined LR_SEL_ENTRADA (
-  if /i "%LR_SEL_MODO%"=="OPCIONAL" goto LR_SEL_SALVAR
-  goto LR_SEL_REPETIR
-)
-set "LR_SEL_ENTRADA=!LR_SEL_ENTRADA:"=!"
-if "!LR_SEL_ENTRADA!"=="0" (
-  if /i "%LR_SEL_MODO%"=="OPCIONAL" goto LR_SEL_SALVAR
-  goto LR_SEL_REPETIR
-)
-if "!LR_SEL_ENTRADA!"=="1" (
-  set "LR_SEL_NOME=Mini ONU FiberHome AN5506-01-A"
-  set "LR_SEL_TIPO=ONU"
-  goto LR_SEL_SALVAR
-)
-if "!LR_SEL_ENTRADA!"=="2" (
-  set "LR_SEL_NOME=ONU/ONT - modelo nao informado"
-  set "LR_SEL_TIPO=ONU"
-  set /p "LR_SEL_NOME=  Modelo da ONU/ONT ^(ENTER se nao souber^): "
-  goto LR_SEL_IDENTIFICAR
-)
-if "!LR_SEL_ENTRADA!"=="3" (
-  set "LR_SEL_NOME=Roteador - modelo nao informado"
-  set "LR_SEL_TIPO=ROTEADOR"
-  set /p "LR_SEL_NOME=  Modelo do roteador ^(ENTER se nao souber^): "
-  goto LR_SEL_IDENTIFICAR
-)
-if "!LR_SEL_ENTRADA!"=="4" (
-  set /p "LR_SEL_NOME=  Nome / modelo do aparelho: "
-  if not defined LR_SEL_NOME goto LR_SEL_REPETIR
-  set "LR_SEL_TIPO=OUTRO"
-  goto LR_SEL_IDENTIFICAR
-)
-if "!LR_SEL_ENTRADA!"=="5" (
-  set "LR_SEL_NOME=ONT com roteador integrado"
-  set "LR_SEL_TIPO=ONT_INTEGRADA"
-  set /p "LR_SEL_NOME=  Modelo da ONT integrada ^(ENTER se nao souber^): "
-  goto LR_SEL_IDENTIFICAR
-)
-set "LR_SEL_NOME=!LR_SEL_ENTRADA!"
-set "LR_SEL_TIPO=OUTRO"
-:LR_SEL_IDENTIFICAR
-set "LR_SEL_NOME=!LR_SEL_NOME:"=!"
-set "LR_SEL_NOME=!LR_SEL_NOME:&=e!"
-set "LR_SEL_NOME=!LR_SEL_NOME:|= !"
-set "LR_SEL_NOME=!LR_SEL_NOME:<= !"
-set "LR_SEL_NOME=!LR_SEL_NOME:>= !"
-if not defined LR_SEL_NOME goto LR_SEL_REPETIR
-if /i not "%LR_SEL_TIPO%"=="OUTRO" goto LR_SEL_SALVAR
-if /i "!LR_SEL_NOME:~0,8!"=="ROTEADOR" set "LR_SEL_TIPO=ROTEADOR"
-if /i not "!LR_SEL_NOME:AN5506=!"=="!LR_SEL_NOME!" set "LR_SEL_TIPO=ONU"
-if /i "!LR_SEL_NOME:~0,3!"=="ONU" set "LR_SEL_TIPO=ONU"
-if /i "!LR_SEL_NOME:~0,3!"=="ONT" set "LR_SEL_TIPO=ONU"
-:LR_SEL_SALVAR
-set "%~1=!LR_SEL_NOME!"
-set "%~1_TIPO=!LR_SEL_TIPO!"
-exit /b 0
 
 :LOCALIZAR
 setlocal disabledelayedexpansion
