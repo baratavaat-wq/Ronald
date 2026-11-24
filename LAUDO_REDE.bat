@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1072"
+set "VER=1073"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -1234,31 +1234,6 @@ set "SATURA=N"
 :: so conta como saturacao se o programa foi realmente encontrado
 if defined SPEEDEXE set "SATURA=S"
 if defined FASTEXE set "SATURA=S"
-set "MOTIVO_SEM_SPEED=escolha do tecnico"
-if /i "%USAR_SPEED%"=="S" if not defined SPEEDEXE set "MOTIVO_SEM_SPEED=programa nao encontrado no disco"
-if /i "%USAR_FAST%"=="S" if not defined FASTEXE set "MOTIVO_SEM_SPEED=programa nao encontrado no disco"
-if /i "%SATURA%"=="N" if not defined SRV_OK (
-  color 0E
-  echo.
-  echo   -----------------------------------------------------
-  echo   ALERTA
-  echo   O teste de velocidade NAO vai rodar.
-  echo   Motivo: !MOTIVO_SEM_SPEED!
-  echo.
-  echo   Se o programa nao foi encontrado, coloque o
-  echo   speedtest.exe na mesma pasta deste script e rode
-  echo   de novo.
-  echo.
-  echo   A analise continua normalmente, porem metricas que
-  echo   dependem do teste de velocidade, como bufferbloat e
-  echo   comportamento do link sob carga, nao poderao ser
-  echo   avaliadas.
-  echo   -----------------------------------------------------
-  echo.
-  pause
-  color 0A
-)
-
 :: aviso vale para QUALQUER conexao: cabo, Wi-Fi 5 GHz ou 2.4 GHz
 if /i "%SATURA%"=="S" (
   color 0E
@@ -1292,6 +1267,7 @@ echo.
 :: =========================================================
 :: MONITOR DE PING COM BIP (ping_beep.ps1)
 :: =========================================================
+echo Preparando os monitores de ping...
 set "PCTRL=%TEMP%\lr_controle_%STAMP%_%RANDOM%.ps1"
 del "%PCTRL%" >nul 2>&1
 echo function Initialize-LaudoControl([string]$Folder) { >>"%PCTRL%"
@@ -2371,20 +2347,6 @@ echo if($rows.Count -gt 0){$rows^|Export-Csv -LiteralPath (Join-Path $Pasta 'VEL
 echo else{Set-Content -LiteralPath (Join-Path $Pasta 'VELOCIDADE.csv') -Value 'fonte;rodada;status;download_mbps;upload_mbps;latencia_ociosa_ms;jitter_ocioso_ms;latencia_download_ms;latencia_upload_ms;perda_percentual;url' -Encoding UTF8} >>"%PMET%"
 echo [void]$summary.Add('Valores ausentes sao NAO MEDIDOS, nao zero. Rodadas parciais nao certificam download/upload completos. Logs brutos preservados.') >>"%PMET%"
 echo Set-Content -LiteralPath (Join-Path $Pasta 'VELOCIDADE_RESUMO.txt') -Value $summary -Encoding UTF8 >>"%PMET%"
-:: Contagem de 10s antes de abrir as janelas dos testes.
-set "INICIO_ESC="
-if defined WT_SESSION for /f "delims=" %%E in ('powershell -NoProfile -Command "[char]27"') do set "INICIO_ESC=%%E"
-color 06
-if defined INICIO_ESC echo %INICIO_ESC%[38;2;255;165;0m
-echo.
-echo   ============================================================
-echo   ATENCAO - OS TESTES VAO INICIAR EM 10 SEGUNDOS
-echo   Aguarde a contagem para iniciar os testes.
-echo   ============================================================
-powershell -NoProfile -Command "for($s=10;$s -ge 1;$s--){Write-Host -NoNewline (([string][char]13)+'  Iniciando em '+$s+' segundo(s)...    ');Start-Sleep -Seconds 1};Write-Host ''"
-if defined INICIO_ESC echo %INICIO_ESC%[0m
-color 0A
-
 break>"%CTL%\heartbeat.flag" 2>nul
 if defined SPEEDEXE (
   set "speed_BAT=%TEMP%\speed_loop_%STAMP%_%RANDOM%.bat"
