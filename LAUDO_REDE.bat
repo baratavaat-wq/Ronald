@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1074"
+set "VER=1075"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -251,7 +251,6 @@ echo.
 echo   ============================================
 echo     [OK] VERSAO %VER% carregada com sucesso!
 echo   ============================================
-timeout /t 4 >nul
 
 :: GATEWAY AUTOMATICO (ABA 1)
 set "GW="
@@ -515,7 +514,6 @@ goto FIM_PERGUNTAS
 :SEM_PERGUNTA_IPV6
 echo  ----------------------------------------------------
 echo  ABA 6 - PING EXTRA IPv6: a rede NAO tem IPv6, entao nem pergunto.
-timeout /t 2 >nul
 
 :FIM_PERGUNTAS
 if "%TEM_IPV6%"=="1" (set "TXT_IPV6=SIM - alvo: %IPV6_USADO%") else (set "TXT_IPV6=NAO - abas IPv6 nao serao abertas")
@@ -892,7 +890,6 @@ goto COR_DOIS
 echo   Ok, mantendo os dois por sua conta.
 :COR_DOIS
 color 0A
-timeout /t 3 >nul
 :FIM_DOIS
 echo.
 
@@ -1203,7 +1200,6 @@ echo.
 echo   [ATENCAO] ABA 9 junto com Speedtest/Fast: os testes disputam
 echo   a mesma banda e todas as medicoes saem menores que o real.
 color 0A
-timeout /t 3 >nul
 
 :FIM_ABA9
 
@@ -1211,14 +1207,14 @@ timeout /t 3 >nul
 set "SPEEDEXE="
 set "FASTEXE="
 if /i not "%USAR_SPEED%"=="S" goto PULA_SPEED
-echo Procurando o speedtest no disco (pode demorar um pouco)...
+echo Localizando o Speedtest...
 call :LOCALIZAR SPEEDEXE "%NOME_SPEED%"
-if defined SPEEDEXE (echo   ^> speedtest: %SPEEDEXE%) else (echo   [AVISO] speedtest nao encontrado - o teste sera pulado.)
+if defined SPEEDEXE (echo   ^> speedtest: %SPEEDEXE%) else (echo   [AVISO] Speedtest nao localizado. Coloque o executavel junto do BAT para usa-lo.)
 :PULA_SPEED
 if /i not "%USAR_FAST%"=="S" goto PULA_FAST
-echo Procurando o fast no disco (pode demorar um pouco)...
+echo Localizando o Fast...
 call :LOCALIZAR FASTEXE "%NOME_FAST%"
-if defined FASTEXE (echo   ^> fast     : %FASTEXE%) else (echo   [AVISO] fast nao encontrado - o teste sera pulado.)
+if defined FASTEXE (echo   ^> fast     : %FASTEXE%) else (echo   [AVISO] Fast nao localizado. Coloque o executavel junto do BAT para usa-lo.)
 :PULA_FAST
 if /i "%USAR_SPEED%"=="N" echo   SPEEDTEST: nao sera executado (escolha do tecnico).
 if /i "%USAR_FAST%"=="N" echo   FAST: nao sera executado (escolha do tecnico).
@@ -1251,9 +1247,7 @@ if /i "%SATURA%"=="S" (
   echo   SEM speedtest ^(de preferencia no cabo^).
   echo   -----------------------------------------------------
   echo.
-  pause
   color 0A
-  cls
 )
 echo.
 
@@ -1420,6 +1414,660 @@ echo Write-Host ("RESUMO " + $alvo + " " + $ver + " : timeouts=" + $stats.Timeou
 echo } finally { Unregister-LaudoWorker } >>"%PBEEP%"
 echo exit 0 >>"%PBEEP%"
 
+:: =========================================================
+:: ESPERA COM Ctrl+C / F (aguardar.ps1)
+:: =========================================================
+set "PWAIT=%TEMP%\aguardar_%STAMP%_%RANDOM%.ps1"
+del "%PWAIT%" >nul 2>&1
+echo param($segundos, $gw, $alvo, $mins, $tec, $conx, $controlFolder) >>"%PWAIT%"
+echo if (-not $segundos) { $segundos = 900 } >>"%PWAIT%"
+echo [Console]::TreatControlCAsInput = $true >>"%PWAIT%"
+echo $hb = Join-Path $controlFolder 'heartbeat.flag' >>"%PWAIT%"
+echo $fim = (Get-Date).AddSeconds([int]$segundos) >>"%PWAIT%"
+echo $ini = Get-Date >>"%PWAIT%"
+echo $durFile = Join-Path $controlFolder 'tempo_seg.txt' >>"%PWAIT%"
+echo try { >>"%PWAIT%"
+echo while ((Get-Date) -lt $fim) { >>"%PWAIT%"
+echo try { Set-Content -Path $hb -Value ([string](Get-Date).Ticks) -ErrorAction SilentlyContinue } catch {} >>"%PWAIT%"
+echo $rest = [int][math]::Floor(($fim - (Get-Date)).TotalSeconds) >>"%PWAIT%"
+echo if ($rest -lt 0) { $rest = 0 } >>"%PWAIT%"
+echo $m = [int][math]::Floor($rest / 60) >>"%PWAIT%"
+echo $s = $rest - ($m * 60) >>"%PWAIT%"
+echo Clear-Host >>"%PWAIT%"
+echo Write-Host "=====================================================" >>"%PWAIT%"
+echo Write-Host ("       LAUDO DE REDE v%VER% - Tecnico: " + $tec) >>"%PWAIT%"
+echo Write-Host "=====================================================" >>"%PWAIT%"
+echo Write-Host ("  Roteador : " + $gw) >>"%PWAIT%"
+echo Write-Host ("  Internet : " + $alvo) >>"%PWAIT%"
+echo Write-Host ("  Conexao  : " + $conx) >>"%PWAIT%"
+echo Write-Host ("  Teste de : " + $mins + " minutos") >>"%PWAIT%"
+echo Write-Host ("  TEMPO RESTANTE: " + ("{0:00}:{1:00}" -f $m, $s)) >>"%PWAIT%"
+echo Write-Host ("") >>"%PWAIT%"
+echo Write-Host "  Aperte F para encerrar agora e gerar o laudo." -ForegroundColor Green >>"%PWAIT%"
+echo Write-Host "  Ctrl+C aborta tudo e NAO gera laudo nem envia nada." -ForegroundColor Yellow >>"%PWAIT%"
+echo Write-Host "=====================================================" >>"%PWAIT%"
+echo $t0 = Get-Date >>"%PWAIT%"
+echo while (((Get-Date) - $t0).TotalMilliseconds -lt 1000) { >>"%PWAIT%"
+echo if ([Console]::KeyAvailable) { >>"%PWAIT%"
+echo $k = [Console]::ReadKey($true) >>"%PWAIT%"
+echo if ($k.Key -eq 'F') { return } >>"%PWAIT%"
+echo if (($k.Modifiers -band [ConsoleModifiers]::Control) -and ($k.Key -eq 'C')) { return } >>"%PWAIT%"
+echo } >>"%PWAIT%"
+echo Start-Sleep -Milliseconds 80 >>"%PWAIT%"
+echo } >>"%PWAIT%"
+echo } >>"%PWAIT%"
+echo } finally { >>"%PWAIT%"
+echo $dec = [int][math]::Round(((Get-Date) - $ini).TotalSeconds) >>"%PWAIT%"
+echo try { [System.IO.File]::WriteAllText($durFile, [string]$dec) } catch {} >>"%PWAIT%"
+echo } >>"%PWAIT%"
+
+if /i not "%SATURA%"=="S" goto INICIAR_MONITORES
+set "PVEL=%TEMP%\lr_velocidade_%STAMP%_%RANDOM%.ps1"
+del "%PVEL%" >nul 2>&1
+echo param([string]$ControlScript,[string]$Exe,[string]$ArgumentLine,[string]$Pasta,[string]$Tipo,[int]$Intervalo) >>"%PVEL%"
+echo $ErrorActionPreference='Stop' >>"%PVEL%"
+echo . $ControlScript >>"%PVEL%"
+echo Initialize-LaudoControl (Join-Path $Pasta '_controle') >>"%PVEL%"
+echo Register-LaudoWorker >>"%PVEL%"
+echo $log=Join-Path $Pasta $(if($Tipo -eq 'speed'){'speedlog.txt'}else{'fastlog.txt'}) >>"%PVEL%"
+echo $flag=Join-Path $Pasta ('_sat_'+$Tipo+'.flag') >>"%PVEL%"
+echo $name=if($Tipo -eq 'speed'){'SPEEDTEST'}else{'FAST'} >>"%PVEL%"
+echo $encoding=New-Object Text.UTF8Encoding($false) >>"%PVEL%"
+echo $stream=New-Object IO.FileStream($log,[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::ReadWrite) >>"%PVEL%"
+echo $writer=New-Object IO.StreamWriter($stream,$encoding) >>"%PVEL%"
+echo $writer.AutoFlush=$true >>"%PVEL%"
+echo try { >>"%PVEL%"
+echo     while(-not (Test-LaudoStop)){ >>"%PVEL%"
+echo         $writer.WriteLine('-----------------------------') >>"%PVEL%"
+echo         $writer.WriteLine($name+' EM '+(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) >>"%PVEL%"
+echo         [IO.File]::WriteAllText($flag,'ativo') >>"%PVEL%"
+echo         try { >>"%PVEL%"
+echo             $capture={param($line) $writer.WriteLine($line);Write-Host $line} >>"%PVEL%"
+echo             Invoke-LaudoNative -Exe $Exe -Arguments $ArgumentLine -OnOut $capture -OnError $capture >>"%PVEL%"
+echo             if($script:LaudoNativeInterrupted){$writer.WriteLine('[RODADA INTERROMPIDA]')} >>"%PVEL%"
+echo             elseif($script:LaudoNativeExitCode -eq 0){$writer.WriteLine('[RODADA CONCLUIDA codigo=0]')} >>"%PVEL%"
+echo             else {$writer.WriteLine('[RODADA COM ERRO codigo='+$script:LaudoNativeExitCode+']')} >>"%PVEL%"
+echo         } catch {$writer.WriteLine('[RODADA COM ERRO] '+$_.Exception.Message)} >>"%PVEL%"
+echo         finally {try{[IO.File]::Delete($flag)}catch{};$writer.Flush()} >>"%PVEL%"
+echo         if(Test-LaudoStop){break} >>"%PVEL%"
+echo         $next=(Get-Date).AddSeconds([math]::Max(5,$Intervalo)) >>"%PVEL%"
+echo         while((Get-Date) -lt $next -and -not (Test-LaudoStop)){Start-Sleep -Milliseconds 150} >>"%PVEL%"
+echo     } >>"%PVEL%"
+echo } finally { >>"%PVEL%"
+echo     $writer.Dispose() >>"%PVEL%"
+echo     try{[IO.File]::Delete($flag)}catch{} >>"%PVEL%"
+echo     Unregister-LaudoWorker >>"%PVEL%"
+echo } >>"%PVEL%"
+echo exit 0 >>"%PVEL%"
+:INICIAR_MONITORES
+break>"%CTL%\heartbeat.flag" 2>nul
+if defined SPEEDEXE (
+  set "speed_BAT=%TEMP%\speed_loop_%STAMP%_%RANDOM%.bat"
+  > "!speed_BAT!" (
+    echo @echo off
+    echo chcp 65001 ^>nul
+    echo title LAUDO_SPEED
+    echo color 0B
+    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%SPEEDEXE%" -ArgumentLine " %SPEEDARGS%" -Pasta "%LAUDO%" -Tipo speed -Intervalo %INTERVALO_SPEED%
+    echo exit /b 0
+  )
+  start "LAUDO_SPEED" cmd /d /c call "!speed_BAT!"
+)
+if defined FASTEXE (
+  set "fast_BAT=%TEMP%\fast_loop_%STAMP%_%RANDOM%.bat"
+  > "!fast_BAT!" (
+    echo @echo off
+    echo chcp 65001 ^>nul
+    echo title LAUDO_FAST
+    echo color 0D
+    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%FASTEXE%" -ArgumentLine " %FASTARGS%" -Pasta "%LAUDO%" -Tipo fast -Intervalo %INTERVALO_FAST%
+    echo exit /b 0
+  )
+  start "LAUDO_FAST" cmd /d /c call "!fast_BAT!"
+)
+
+:: ABA 9 - LOOP DO SERVIDOR PROPRIO (constante, sem marcar [SAT])
+if not defined SRV_OK goto ABA9_SEM_JANELA
+set "PSRV=%TEMP%\srv_speed_%STAMP%_%RANDOM%.ps1"
+del "%PSRV%" >nul 2>&1
+echo param($base, $usuario, $senha, $mbps, $mbpsUp, $direcao, $logf, $cxDl, $cxUp, $segBloco) >>"%PSRV%"
+echo . '%PCTRL%' >>"%PSRV%"
+echo Initialize-LaudoControl (Join-Path (Split-Path $logf -Parent) '_controle') >>"%PSRV%"
+echo Register-LaudoWorker >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $ErrorActionPreference = "SilentlyContinue" >>"%PSRV%"
+echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PSRV%"
+echo [Net.ServicePointManager]::DefaultConnectionLimit = 64 >>"%PSRV%"
+echo [Net.ServicePointManager]::Expect100Continue = $false >>"%PSRV%"
+echo Add-Type -AssemblyName System.Net.Http >>"%PSRV%"
+echo $base = ([string]$base).TrimEnd("/") >>"%PSRV%"
+echo $alvo = [int]$mbps >>"%PSRV%"
+echo $alvoUp = [int]$mbpsUp >>"%PSRV%"
+echo if ($alvoUp -le 0) { $alvoUp = $alvo } >>"%PSRV%"
+echo $dirCfg = ([string]$direcao).ToLower() >>"%PSRV%"
+echo $conxD = [int]$cxDl >>"%PSRV%"
+echo if ($conxD -lt 1) { $conxD = 1 } >>"%PSRV%"
+echo if ($conxD -gt 8) { $conxD = 8 } >>"%PSRV%"
+echo $conxU = [int]$cxUp >>"%PSRV%"
+echo if ($conxU -lt 1) { $conxU = 1 } >>"%PSRV%"
+echo if ($conxU -gt 8) { $conxU = 8 } >>"%PSRV%"
+echo $bloco = [int]$segBloco >>"%PSRV%"
+echo if ($bloco -lt 5) { $bloco = 60 } >>"%PSRV%"
+echo $q = [char]34 >>"%PSRV%"
+echo $hbArq = Join-Path $script:LaudoControlFolder "heartbeat.flag" >>"%PSRV%"
+echo $viuHb = $false >>"%PSRV%"
+echo $efeD = 0.0 >>"%PSRV%"
+echo $efeU = 0.0 >>"%PSRV%"
+echo $avisou = "" >>"%PSRV%"
+echo $segD = 0.0 >>"%PSRV%"
+echo $bytesD = [long]0 >>"%PSRV%"
+echo $melhorD = 0.0 >>"%PSRV%"
+echo $piorD = 0.0 >>"%PSRV%"
+echo $segU = 0.0 >>"%PSRV%"
+echo $bytesU = [long]0 >>"%PSRV%"
+echo $melhorU = 0.0 >>"%PSRV%"
+echo $piorU = 0.0 >>"%PSRV%"
+echo $h = New-Object System.Net.Http.HttpClientHandler >>"%PSRV%"
+echo $h.AllowAutoRedirect = $false >>"%PSRV%"
+echo $h.UseCookies = $true >>"%PSRV%"
+echo $h.CookieContainer = New-Object System.Net.CookieContainer >>"%PSRV%"
+echo $h.MaxConnectionsPerServer = 64 >>"%PSRV%"
+echo $cli = New-Object System.Net.Http.HttpClient($h) >>"%PSRV%"
+echo $cli.Timeout = [TimeSpan]::FromSeconds(30) >>"%PSRV%"
+echo function Vivo { >>"%PSRV%"
+echo if (Test-LaudoStop) { return $false } >>"%PSRV%"
+echo if (-not $script:viuHb) { >>"%PSRV%"
+echo if (Test-Path $script:hbArq) { $script:viuHb = $true } >>"%PSRV%"
+echo return $true >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if (-not (Test-Path $script:hbArq)) { return $false } >>"%PSRV%"
+echo $idade = ((Get-Date) - (Get-Item $script:hbArq).LastWriteTime).TotalSeconds >>"%PSRV%"
+echo if ($idade -gt 90) { return $false } >>"%PSRV%"
+echo return $true >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Anota($txt) { >>"%PSRV%"
+echo Write-Host $txt >>"%PSRV%"
+echo try { Add-Content -Path $script:logf -Value $txt } catch { } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Fmt($v) { >>"%PSRV%"
+echo return ("{0:0.0}" -f [double]$v) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Hora { >>"%PSRV%"
+echo return ("[" + (Get-Date).ToString("HH:mm:ss") + "]  ") >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Entrar { >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $corpo = "username=" + [uri]::EscapeDataString([string]$usuario) + "&password=" + [uri]::EscapeDataString([string]$senha) >>"%PSRV%"
+echo $sc = New-Object System.Net.Http.StringContent($corpo, [System.Text.Encoding]::UTF8, "application/x-www-form-urlencoded") >>"%PSRV%"
+echo $r = $cli.PostAsync(($base + "/login"), $sc).Result >>"%PSRV%"
+echo foreach ($c in $h.CookieContainer.GetCookies([Uri]$base)) { if ($c.Name -eq "sid") { return $true } } >>"%PSRV%"
+echo } catch { } >>"%PSRV%"
+echo return $false >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Comecar($dir) { >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $pedido = $alvo >>"%PSRV%"
+echo if ($dir -eq "upload") { $pedido = $alvoUp } >>"%PSRV%"
+echo $j = "{" + $q + "direction" + $q + ":" + $q + $dir + $q + "," + $q + "mbps" + $q + ":" + [string]$pedido + "}" >>"%PSRV%"
+echo $sc = New-Object System.Net.Http.StringContent($j, [System.Text.Encoding]::UTF8, "application/json") >>"%PSRV%"
+echo $r = $cli.PostAsync(($base + "/test/start"), $sc).Result >>"%PSRV%"
+echo $txt = [string]$r.Content.ReadAsStringAsync().Result >>"%PSRV%"
+echo $o = ConvertFrom-Json -InputObject $txt >>"%PSRV%"
+echo $efe = 0.0 >>"%PSRV%"
+echo if ($o.mbps) { $efe = [double]$o.mbps } >>"%PSRV%"
+echo if ($dir -eq "upload") { $script:efeU = $efe } else { $script:efeD = $efe } >>"%PSRV%"
+echo if ($efe -gt 0 -and $efe -lt $pedido -and -not $script:avisou.Contains($dir)) { >>"%PSRV%"
+echo $script:avisou = $script:avisou + $dir >>"%PSRV%"
+echo Anota ((Hora) + "[INFO] o servidor limitou o " + $dir + " a " + (Fmt $efe) + " Mbps - teto deste login.") >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($o.test_id) { return [string]$o.test_id } >>"%PSRV%"
+echo if ($o.error) { Anota ((Hora) + "[SERVIDOR] " + [string]$o.error) } >>"%PSRV%"
+echo } catch { } >>"%PSRV%"
+echo return "" >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function Parar($id) { >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $j = "{" + $q + "test_id" + $q + ":" + $q + $id + $q + "}" >>"%PSRV%"
+echo $sc = New-Object System.Net.Http.StringContent($j, [System.Text.Encoding]::UTF8, "application/json") >>"%PSRV%"
+echo $r = $cli.PostAsync(($base + "/test/stop"), $sc).Result >>"%PSRV%"
+echo $nada = [string]$r.Content.ReadAsStringAsync().Result >>"%PSRV%"
+echo } catch { } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function FaseDown($id, $limiteSeg, $nconx) { >>"%PSRV%"
+echo $tot = [long]0 >>"%PSRV%"
+echo $b5 = [long]0 >>"%PSRV%"
+echo $t5 = 0.0 >>"%PSRV%"
+echo $b30 = [long]0 >>"%PSRV%"
+echo $t30 = 0.0 >>"%PSRV%"
+echo $sts = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo $resps = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo $bufs = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo $sw = [System.Diagnostics.Stopwatch]::StartNew() >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
+echo $url = $base + "/download?test_id=" + $id + "&n=" + [string]$nconx >>"%PSRV%"
+echo $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $url) >>"%PSRV%"
+echo $resp = $cli.SendAsync($req, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result >>"%PSRV%"
+echo if (-not $resp.IsSuccessStatusCode) { >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] o servidor recusou o download - HTTP " + [string][int]$resp.StatusCode) >>"%PSRV%"
+echo Start-Sleep -Seconds 3 >>"%PSRV%"
+echo break >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $nada = $resps.Add($resp) >>"%PSRV%"
+echo $nada = $sts.Add($resp.Content.ReadAsStreamAsync().Result) >>"%PSRV%"
+echo $nada = $bufs.Add((New-Object byte[] 65536)) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $abertas = $sts.Count >>"%PSRV%"
+echo if ($abertas -gt 0) { >>"%PSRV%"
+echo while ($true) { >>"%PSRV%"
+echo $tarefas = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo for ($i = 0; $i -lt $abertas; $i++) { $nada = $tarefas.Add($sts[$i].ReadAsync($bufs[$i], 0, 65536)) } >>"%PSRV%"
+echo [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tarefas.ToArray()) >>"%PSRV%"
+echo $lidos = 0 >>"%PSRV%"
+echo for ($i = 0; $i -lt $abertas; $i++) { $lidos = $lidos + [int]$tarefas[$i].Result } >>"%PSRV%"
+echo if ($lidos -le 0) { break } >>"%PSRV%"
+echo $tot = $tot + $lidos >>"%PSRV%"
+echo $seg = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo if (($seg - $t5) -ge 5) { >>"%PSRV%"
+echo $v5 = ($tot - $b5) * 8.0 / 1000000.0 / ($seg - $t5) >>"%PSRV%"
+echo Write-Host ("  DOWNLOAD   " + (Fmt $v5) + " Mbps   " + [string]$abertas + " cx") -ForegroundColor Cyan >>"%PSRV%"
+echo $b5 = $tot >>"%PSRV%"
+echo $t5 = $seg >>"%PSRV%"
+echo if (-not (Vivo)) { break } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if (($seg - $t30) -ge 30) { >>"%PSRV%"
+echo $v30 = ($tot - $b30) * 8.0 / 1000000.0 / ($seg - $t30) >>"%PSRV%"
+echo Anota ((Hora) + "DOWNLOAD  ultimos 30s: " + (Fmt $v30) + " Mbps   media do ciclo: " + (Fmt ($tot * 8.0 / 1000000.0 / $seg)) + " Mbps") >>"%PSRV%"
+echo $b30 = $tot >>"%PSRV%"
+echo $t30 = $seg >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($seg -ge $limiteSeg) { break } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo } catch { >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] falha no download: " + $_.Exception.GetBaseException().Message) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $segf = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo Parar $id >>"%PSRV%"
+echo foreach ($s in $sts) { try { $s.Close() } catch { } } >>"%PSRV%"
+echo foreach ($r in $resps) { try { $r.Dispose() } catch { } } >>"%PSRV%"
+echo if ($segf -le 0) { return } >>"%PSRV%"
+echo if ($tot -le 0) { return } >>"%PSRV%"
+echo $med = $tot * 8.0 / 1000000.0 / $segf >>"%PSRV%"
+echo Anota ((Hora) + "DOWNLOAD encerrado: media " + (Fmt $med) + " Mbps   " + (Fmt ($tot / 1000000.0)) + " MB em " + (Fmt $segf) + "s   " + [string]$nconx + " cx") >>"%PSRV%"
+echo $script:segD = $script:segD + $segf >>"%PSRV%"
+echo $script:bytesD = $script:bytesD + $tot >>"%PSRV%"
+echo if ($script:melhorD -le 0 -or $med -gt $script:melhorD) { $script:melhorD = $med } >>"%PSRV%"
+echo if ($script:piorD -le 0 -or $med -lt $script:piorD) { $script:piorD = $med } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo function FaseUp($id, $limiteSeg, $nconx) { >>"%PSRV%"
+echo $tam = 262144 >>"%PSRV%"
+echo $buf = New-Object byte[] $tam >>"%PSRV%"
+echo $rnd = New-Object System.Random >>"%PSRV%"
+echo $rnd.NextBytes($buf) >>"%PSRV%"
+echo $ref = [double]$alvoUp >>"%PSRV%"
+echo if ($efeU -gt 0) { $ref = [double]$efeU } >>"%PSRV%"
+echo $alvoBps = $ref * 1000000.0 / 8.0 >>"%PSRV%"
+echo if ($alvoBps -le 0) { $alvoBps = 1000000.0 } >>"%PSRV%"
+echo $url = $base + "/upload?test_id=" + $id >>"%PSRV%"
+echo $tot = [long]0 >>"%PSRV%"
+echo $b5 = [long]0 >>"%PSRV%"
+echo $t5 = 0.0 >>"%PSRV%"
+echo $b30 = [long]0 >>"%PSRV%"
+echo $t30 = 0.0 >>"%PSRV%"
+echo $sw = [System.Diagnostics.Stopwatch]::StartNew() >>"%PSRV%"
+echo while ($true) { >>"%PSRV%"
+echo $ruim = $false >>"%PSRV%"
+echo try { >>"%PSRV%"
+echo $tarefas = New-Object System.Collections.ArrayList >>"%PSRV%"
+echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
+echo $bc = New-Object System.Net.Http.ByteArrayContent(,$buf) >>"%PSRV%"
+echo $nada = $tarefas.Add($cli.PostAsync($url, $bc)) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tarefas.ToArray()) >>"%PSRV%"
+echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
+echo $rr = $tarefas[$i].Result >>"%PSRV%"
+echo if (-not $rr.IsSuccessStatusCode) { >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] o servidor recusou o upload - HTTP " + [string][int]$rr.StatusCode) >>"%PSRV%"
+echo $ruim = $true >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $nada = [string]$rr.Content.ReadAsStringAsync().Result >>"%PSRV%"
+echo } >>"%PSRV%"
+echo } catch { $ruim = $true >>"%PSRV%"
+echo Anota ((Hora) + "[ERRO] falha no upload: " + $_.Exception.GetBaseException().Message) >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($ruim) { Start-Sleep -Seconds 3; break } >>"%PSRV%"
+echo $tot = $tot + ([long]$tam * $nconx) >>"%PSRV%"
+echo $seg = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo if (($seg - $t5) -ge 5) { >>"%PSRV%"
+echo $v5 = ($tot - $b5) * 8.0 / 1000000.0 / ($seg - $t5) >>"%PSRV%"
+echo Write-Host ("  UPLOAD     " + (Fmt $v5) + " Mbps   " + [string]$nconx + " cx") -ForegroundColor Magenta >>"%PSRV%"
+echo $b5 = $tot >>"%PSRV%"
+echo $t5 = $seg >>"%PSRV%"
+echo if (-not (Vivo)) { break } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if (($seg - $t30) -ge 30) { >>"%PSRV%"
+echo $v30 = ($tot - $b30) * 8.0 / 1000000.0 / ($seg - $t30) >>"%PSRV%"
+echo Anota ((Hora) + "UPLOAD    ultimos 30s: " + (Fmt $v30) + " Mbps   media do ciclo: " + (Fmt ($tot * 8.0 / 1000000.0 / $seg)) + " Mbps") >>"%PSRV%"
+echo $b30 = $tot >>"%PSRV%"
+echo $t30 = $seg >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($seg -ge $limiteSeg) { break } >>"%PSRV%"
+echo $esperado = $tot / $alvoBps >>"%PSRV%"
+echo $espera = ($esperado - $seg) * 1000.0 >>"%PSRV%"
+echo if ($espera -gt 1) { Start-Sleep -Milliseconds ([int]$espera) } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $segf = $sw.Elapsed.TotalSeconds >>"%PSRV%"
+echo Parar $id >>"%PSRV%"
+echo if ($segf -le 0) { return } >>"%PSRV%"
+echo if ($tot -le 0) { return } >>"%PSRV%"
+echo $med = $tot * 8.0 / 1000000.0 / $segf >>"%PSRV%"
+echo Anota ((Hora) + "UPLOAD encerrado: media " + (Fmt $med) + " Mbps   " + (Fmt ($tot / 1000000.0)) + " MB em " + (Fmt $segf) + "s   " + [string]$nconx + " cx") >>"%PSRV%"
+echo $script:segU = $script:segU + $segf >>"%PSRV%"
+echo $script:bytesU = $script:bytesU + $tot >>"%PSRV%"
+echo if ($script:melhorU -le 0 -or $med -gt $script:melhorU) { $script:melhorU = $med } >>"%PSRV%"
+echo if ($script:piorU -le 0 -or $med -lt $script:piorU) { $script:piorU = $med } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $titulo = "LAUDO_SERVIDOR" >>"%PSRV%"
+echo if ($dirCfg -eq "download") { $titulo = "LAUDO_SERVIDOR - DOWNLOAD" } >>"%PSRV%"
+echo if ($dirCfg -eq "upload") { $titulo = "LAUDO_SERVIDOR - UPLOAD" } >>"%PSRV%"
+echo try { $host.UI.RawUI.WindowTitle = $titulo } catch { } >>"%PSRV%"
+echo Anota "=====================================================" >>"%PSRV%"
+echo Anota "  ABA 9 - VELOCIDADE NO SERVIDOR PROPRIO" >>"%PSRV%"
+echo Anota "=====================================================" >>"%PSRV%"
+echo Anota ("  Servidor : " + $base) >>"%PSRV%"
+echo Anota ("  Usuario  : " + [string]$usuario) >>"%PSRV%"
+echo Anota ("  Pedido   : download " + [string]$alvo + " Mbps    upload " + [string]$alvoUp + " Mbps") >>"%PSRV%"
+echo Anota ("  Conexoes : download " + [string]$conxD + "    upload " + [string]$conxU) >>"%PSRV%"
+echo Anota ("  Direcao  : " + $dirCfg) >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { Anota ("  Alterna a cada " + [string]$bloco + "s") } >>"%PSRV%"
+echo Anota ("  Inicio   : " + (Get-Date).ToString("dd/MM/yyyy HH:mm:ss")) >>"%PSRV%"
+echo Anota "  Roda sem parar ate o tempo do laudo acabar." >>"%PSRV%"
+echo Anota "-----------------------------------------------------" >>"%PSRV%"
+echo if (-not (Entrar)) { >>"%PSRV%"
+echo Anota "  [ERRO] nao consegui logar no servidor agora." >>"%PSRV%"
+echo Anota "  Confira se o servidor.py continua ligado e se a rede chega nele." >>"%PSRV%"
+echo Start-Sleep -Seconds 15 >>"%PSRV%"
+echo exit >>"%PSRV%"
+echo } >>"%PSRV%"
+echo $dir = "download" >>"%PSRV%"
+echo if ($dirCfg -eq "upload") { $dir = "upload" } >>"%PSRV%"
+echo $limite = 999999 >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { $limite = $bloco } >>"%PSRV%"
+echo while (Vivo) { >>"%PSRV%"
+echo $id = Comecar $dir >>"%PSRV%"
+echo if ($id -eq "") { >>"%PSRV%"
+echo Anota ((Hora) + "[AVISO] o servidor nao aceitou iniciar o teste de " + $dir + ". Nova tentativa em 5s.") >>"%PSRV%"
+echo Start-Sleep -Seconds 5 >>"%PSRV%"
+echo $nada = Entrar >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { if ($dir -eq "download") { $dir = "upload" } else { $dir = "download" } } >>"%PSRV%"
+echo continue >>"%PSRV%"
+echo } >>"%PSRV%"
+echo if ($dir -eq "download") { FaseDown $id $limite $conxD } else { FaseUp $id $limite $conxU } >>"%PSRV%"
+echo Parar $id >>"%PSRV%"
+echo if ($dirCfg -eq "ambos") { if ($dir -eq "download") { $dir = "upload" } else { $dir = "download" } } >>"%PSRV%"
+echo } >>"%PSRV%"
+echo Anota "-----------------------------------------------------" >>"%PSRV%"
+echo Anota ("  Fim      : " + (Get-Date).ToString("dd/MM/yyyy HH:mm:ss")) >>"%PSRV%"
+echo if ($segD -gt 0) { Anota ("  DOWNLOAD media geral: " + (Fmt ($bytesD * 8.0 / 1000000.0 / $segD)) + " Mbps   melhor: " + (Fmt $melhorD) + " Mbps   pior: " + (Fmt $piorD) + " Mbps   total: " + (Fmt ($bytesD / 1000000.0)) + " MB") } >>"%PSRV%"
+echo if ($segU -gt 0) { Anota ("  UPLOAD   media geral: " + (Fmt ($bytesU * 8.0 / 1000000.0 / $segU)) + " Mbps   melhor: " + (Fmt $melhorU) + " Mbps   pior: " + (Fmt $piorU) + " Mbps   total: " + (Fmt ($bytesU / 1000000.0)) + " MB") } >>"%PSRV%"
+echo if ($segD -le 0 -and $segU -le 0) { Anota "  [AVISO] nenhuma medicao valida foi concluida." } >>"%PSRV%"
+echo Anota "=====================================================" >>"%PSRV%"
+echo Write-Host "  Pode fechar esta janela." -ForegroundColor Yellow >>"%PSRV%"
+echo } finally { Unregister-LaudoWorker } >>"%PSRV%"
+echo exit 0 >>"%PSRV%"
+:: --- COMO ABRIR: alternado = 1 janela / juntos = 2 janelas ---
+set "SRV_LOG1=%LAUDO%\servidor_speed.txt"
+set "SRV_LOG2=%LAUDO%\servidor_speed_up.txt"
+if /i not "%SRV_DIRECAO%"=="ambos" goto ABA9_UMA_JANELA
+if /i not "%SRV_MODO%"=="juntos" goto ABA9_UMA_JANELA
+:: modo JUNTOS: duas janelas, uma so baixando e outra so enviando,
+:: ao mesmo tempo. Logs separados porque sao dois processos gravando.
+start "LAUDO_SRV_DL" cmd /d /c color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "download" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
+timeout /t 2 >nul
+start "LAUDO_SRV_UP" cmd /d /c color 0D ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "upload" "%SRV_LOG2%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
+goto ABA9_SEM_JANELA
+
+:ABA9_UMA_JANELA
+start "LAUDO_SERVIDOR" cmd /d /c color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "%SRV_DIRECAO%" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
+:ABA9_SEM_JANELA
+
+:: ABAS 1 a 6 - PINGS AO VIVO COM BIP
+echo Abrindo as abas de ping com BIP...
+
+start "LAUDO_PING_MODEM"    cmd /d /c color 0A ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%GW%" "%LAUDO%\ping_modem.txt" %LIMITE_ROTEADOR% %QTD_PING% ^& exit 0
+start "LAUDO_PING_INTERNET" cmd /d /c color 0E ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_INTERNET%" "%LAUDO%\ping_internet.txt" %LIMITE_INTERNET% %QTD_PING% 4 ^& exit 0
+start "LAUDO_PING_SERVIDOR" cmd /d /c color 0B ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%SERVIDOR%" "%LAUDO%\ping_servidor.txt" %LIMITE_SERVIDOR% %QTD_PING% ^& exit 0
+
+if defined ALVO_EXTRA (
+  start "LAUDO_PING_EXTRA" cmd /d /c color 0C ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA%" "%LAUDO%\ping_extra.txt" %LIMITE_EXTRA% %QTD_PING% 4 ^& exit 0
+)
+
+if "%TEM_IPV6%"=="1" (
+  start "LAUDO_PING_IPV6" cmd /d /c color 0F ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%IPV6_USADO%" "%LAUDO%\ping_ipv6.txt" %LIMITE_IPV6% %QTD_PING% 6 ^& exit 0
+) else (
+  echo   [INFO] Rede sem IPv6 - abas 5 e 6 NAO foram abertas.
+)
+
+if defined ALVO_EXTRA_IPV6 if "%TEM_IPV6%"=="1" (
+  start "LAUDO_PING_EXTRA6" cmd /d /c color 09 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA_IPV6%" "%LAUDO%\ping_extra6.txt" %LIMITE_EXTRA_IPV6% %QTD_PING% 6 ^& exit 0
+)
+echo.
+
+:: ESPERA (F encerra na hora e gera o laudo; Ctrl+C aborta sem laudo)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PWAIT%" %QTD_PING% "%GW%" "%ALVO_INTERNET%" "%MINUTOS%" "%TECNICO%" "%CONEXAO%" "%CTL%"
+
+:: =========================================================
+:: FINALIZAR
+:: =========================================================
+:FINALIZAR
+cls
+echo Encerrando testes e gerando laudo tecnico...
+rem ---- duracao REAL do teste (le o que o contador PWAIT gravou) ----
+rem   se o tecnico apertar F e encerrar antes, o laudo mostra o tempo
+rem   que REALMENTE rodou, e nao o tempo pedido la no inicio.
+set "SEG_REAIS="
+if exist "%CTL%\tempo_seg.txt" set /p SEG_REAIS=<"%CTL%\tempo_seg.txt"
+if defined SEG_REAIS for /f "delims=0123456789" %%z in ("%SEG_REAIS%") do set "SEG_REAIS="
+if not defined SEG_REAIS set /a "SEG_REAIS=%QTD_PING%"
+set /a "MIN_REAIS=SEG_REAIS/60"
+set /a "SEG_RESTO=SEG_REAIS-(MIN_REAIS*60)"
+set "DUR_REAL=%MIN_REAIS% min %SEG_RESTO% s"
+del "%CTL%\tempo_seg.txt" >nul 2>&1
+echo Encerrando testes e aguardando a gravacao dos logs...
+set "PFIM=%TEMP%\lr_finalizar_%STAMP%_%RANDOM%.ps1"
+del "%PFIM%" >nul 2>&1
+echo param($controlScript,$folder) >>"%PFIM%"
+echo . $controlScript >>"%PFIM%"
+echo if (Stop-LaudoWorkers $folder 8) { exit 0 } else { exit 1 } >>"%PFIM%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PFIM%" "%PCTRL%" "%CTL%"
+if errorlevel 1 (
+  echo [ERRO] Ainda ha um processo de teste ativo. Laudo nao sera gerado com logs em gravacao.
+  echo Pasta dos registros: %LAUDO%
+  pause
+  exit /b 1
+)
+echo Preparando o resumo de velocidade...
+set "PMET=%TEMP%\lr_metricas_%STAMP%_%RANDOM%.ps1"
+del "%PMET%" >nul 2>&1
+echo param([string]$Pasta) >>"%PMET%"
+echo $ErrorActionPreference='Stop' >>"%PMET%"
+echo $ci=[Globalization.CultureInfo]::InvariantCulture >>"%PMET%"
+echo function Number([string]$v){[double]::Parse($v.Replace(',','.'),$ci)} >>"%PMET%"
+echo function Rate($m) { >>"%PMET%"
+echo     if(-not $m.Success){return $null} >>"%PMET%"
+echo     $value=Number $m.Groups[1].Value >>"%PMET%"
+echo     switch -Regex ($m.Groups[2].Value) { >>"%PMET%"
+echo         '^^(?i)K' {$value=$value/1000;break} >>"%PMET%"
+echo         '^^(?i)G' {$value=$value*1000;break} >>"%PMET%"
+echo         '^^(?i)T' {$value=$value*1000000;break} >>"%PMET%"
+echo         '^^(?i)M' {break} >>"%PMET%"
+echo         default {$value=$value/1000000} >>"%PMET%"
+echo     } >>"%PMET%"
+echo     return [math]::Round($value,3) >>"%PMET%"
+echo } >>"%PMET%"
+echo function Display($v,[string]$unit){if($null -eq $v){'nao medido'}else{([double]$v).ToString('0.###',$ci)+' '+$unit}} >>"%PMET%"
+echo $rows=New-Object Collections.ArrayList >>"%PMET%"
+echo $summary=New-Object Collections.ArrayList >>"%PMET%"
+echo [void]$summary.Add('VELOCIDADE - RESULTADOS GRAVADOS') >>"%PMET%"
+echo foreach($source in @(@('OOKLA','speedlog.txt','SPEEDTEST'),@('FAST','fastlog.txt','FAST'))){ >>"%PMET%"
+echo     $path=Join-Path $Pasta $source[1] >>"%PMET%"
+echo     if(-not (Test-Path -LiteralPath $path)){ >>"%PMET%"
+echo         [void]$summary.Add($source[0]+': sem log de execucao; velocidade nao medida.') >>"%PMET%"
+echo         continue >>"%PMET%"
+echo     } >>"%PMET%"
+echo     $text=Get-Content -LiteralPath $path -Raw -Encoding UTF8 >>"%PMET%"
+echo     $text=[regex]::Replace([string]$text,[string][char]27+'\[[0-9;?]*[A-Za-z]','') >>"%PMET%"
+echo     $blocks=@([regex]::Split($text,'(?m)^^(?='+$source[2]+' EM )')^|Where-Object {$_ -match ('(?m)^^'+$source[2]+' EM ')}) >>"%PMET%"
+echo     if($blocks.Count -eq 0){$blocks=@($text)} >>"%PMET%"
+echo     $round=0 >>"%PMET%"
+echo     foreach($block in $blocks){ >>"%PMET%"
+echo         $round++ >>"%PMET%"
+echo         $dl=[regex]::Match($block,'(?im)^^\s*Download\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*([KMGT]?(?:bps^|bit/s))') >>"%PMET%"
+echo         $ul=[regex]::Match($block,'(?im)^^\s*Upload\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*([KMGT]?(?:bps^|bit/s))') >>"%PMET%"
+echo         $download=Rate $dl;$upload=Rate $ul >>"%PMET%"
+echo         $idle=$null;$jitter=$null;$loss=$null;$dlLatency=$null;$ulLatency=$null >>"%PMET%"
+echo         $m=[regex]::Match($block,'(?im)^^\s*(?:Idle Latency^|Latency^|Ping)\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*ms(?:\s*\(jitter:\s*([0-9]+(?:[.,][0-9]+)?)ms)?') >>"%PMET%"
+echo         if($m.Success){$idle=Number $m.Groups[1].Value;if($m.Groups[2].Success){$jitter=Number $m.Groups[2].Value}} >>"%PMET%"
+echo         $m=[regex]::Match($block,'(?im)^^\s*Packet Loss:\s*([0-9]+(?:[.,][0-9]+)?)\s*%%') >>"%PMET%"
+echo         if($m.Success){$loss=Number $m.Groups[1].Value} >>"%PMET%"
+echo         if($dl.Success){ >>"%PMET%"
+echo             $end=if($ul.Success){$ul.Index}else{$block.Length} >>"%PMET%"
+echo             $m=[regex]::Match($block.Substring($dl.Index+$dl.Length,$end-($dl.Index+$dl.Length)),'(?m)^^\s*([0-9]+(?:[.,][0-9]+)?)\s*ms\s*\(jitter:') >>"%PMET%"
+echo             if($m.Success){$dlLatency=Number $m.Groups[1].Value} >>"%PMET%"
+echo         } >>"%PMET%"
+echo         if($ul.Success){ >>"%PMET%"
+echo             $m=[regex]::Match($block.Substring($ul.Index+$ul.Length),'(?m)^^\s*([0-9]+(?:[.,][0-9]+)?)\s*ms\s*\(jitter:') >>"%PMET%"
+echo             if($m.Success){$ulLatency=Number $m.Groups[1].Value} >>"%PMET%"
+echo         } >>"%PMET%"
+echo         $url=[regex]::Match($block,'(?im)^^\s*Result URL:\s*(https://\S+)').Groups[1].Value >>"%PMET%"
+echo         $status='SEM METRICAS RECONHECIDAS' >>"%PMET%"
+echo         $complete=($null -ne $download -and $null -ne $upload) >>"%PMET%"
+echo         if($source[0] -eq 'FAST'){$complete=($null -ne $download)} >>"%PMET%"
+echo         if($block -match '\[RODADA INTERROMPIDA\]'){$status='PARCIAL - INTERROMPIDA'} >>"%PMET%"
+echo         elseif($block -match '\[RODADA COM ERRO'){$status='ERRO'} >>"%PMET%"
+echo         elseif($complete -and ($url -or $block -match '\[RODADA CONCLUIDA codigo=0\]')){$status='CONCLUIDA'} >>"%PMET%"
+echo         elseif($null -ne $download -or $null -ne $upload){$status='PARCIAL - SEM CONFIRMACAO DE CONCLUSAO'} >>"%PMET%"
+echo         $row=[pscustomobject]@{fonte=$source[0];rodada=$round;status=$status;download_mbps=$download;upload_mbps=$upload;latencia_ociosa_ms=$idle;jitter_ocioso_ms=$jitter;latencia_download_ms=$dlLatency;latencia_upload_ms=$ulLatency;perda_percentual=$loss;url=$url} >>"%PMET%"
+echo         [void]$rows.Add($row) >>"%PMET%"
+echo         [void]$summary.Add(('{0} rodada {1}: {2}; download {3}; upload {4}; latencia ociosa {5}; sob download {6}; sob upload {7}; perda {8}.' -f $row.fonte,$round,$status,(Display $download 'Mbps'),(Display $upload 'Mbps'),(Display $idle 'ms'),(Display $dlLatency 'ms'),(Display $ulLatency 'ms'),(Display $loss '%%'))) >>"%PMET%"
+echo     } >>"%PMET%"
+echo } >>"%PMET%"
+echo foreach($row in $rows){foreach($property in $row.PSObject.Properties){if($property.Value -is [double]){$property.Value=$property.Value.ToString('0.###',$ci)}}} >>"%PMET%"
+echo if($rows.Count -gt 0){$rows^|Export-Csv -LiteralPath (Join-Path $Pasta 'VELOCIDADE.csv') -NoTypeInformation -Delimiter ';' -Encoding UTF8} >>"%PMET%"
+echo else{Set-Content -LiteralPath (Join-Path $Pasta 'VELOCIDADE.csv') -Value 'fonte;rodada;status;download_mbps;upload_mbps;latencia_ociosa_ms;jitter_ocioso_ms;latencia_download_ms;latencia_upload_ms;perda_percentual;url' -Encoding UTF8} >>"%PMET%"
+echo [void]$summary.Add('Valores ausentes sao NAO MEDIDOS, nao zero. Rodadas parciais nao certificam download/upload completos. Logs brutos preservados.') >>"%PMET%"
+echo Set-Content -LiteralPath (Join-Path $Pasta 'VELOCIDADE_RESUMO.txt') -Value $summary -Encoding UTF8 >>"%PMET%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PMET%" "%LAUDO%"
+if errorlevel 1 (
+  echo [ERRO] Falha ao extrair metricas de velocidade. Logs brutos preservados em %LAUDO%
+  pause
+  exit /b 1
+)
+
+:: v1057 - relato humano da live, apos encerrar testes e antes do laudo.
+set "LIVE_RELATO=NAO ACOMPANHADA - o script nao monitora a live."
+if /i not "%SATURA%"=="S" goto LIVE_REGISTRAR
+:: Destaque do menu: laranja no Windows Terminal, ambar no CMD classico.
+set "LIVE_ESC="
+if defined WT_SESSION for /f "delims=" %%E in ('powershell -NoProfile -Command "[char]27"') do set "LIVE_ESC=%%E"
+color 06
+if defined LIVE_ESC echo %LIVE_ESC%[38;2;255;165;0m
+echo.
+echo   ========================================================
+echo   ATENCAO - SELECIONE UMA OPCAO PARA FINALIZAR
+echo   VIDEO OU LIVE OBSERVADO DURANTE O ATENDIMENTO - observacao do tecnico
+echo   S = travou durante o teste de velocidade
+echo   F = travou sem teste de velocidade rodando
+echo   N = foi acompanhado e nao travou
+echo   A = nao foi acompanhado
+echo   ========================================================
+echo   Se nao responder em 15 segundos, sera registrado A.
+set "PSEL=%TEMP%\lr_escolha_%STAMP%_%RANDOM%.ps1"
+del "%PSEL%" >nul 2>&1
+echo param([int]$Segundos=15,[string]$Resultado) >>"%PSEL%"
+echo $ErrorActionPreference='Stop' >>"%PSEL%"
+echo $map=@{S=1;F=2;N=3;A=4} >>"%PSEL%"
+echo $selected=$null >>"%PSEL%"
+echo $seconds=[math]::Max(1,$Segundos) >>"%PSEL%"
+echo $watch=[Diagnostics.Stopwatch]::StartNew() >>"%PSEL%"
+echo $last=-1 >>"%PSEL%"
+echo $redirected=$true >>"%PSEL%"
+echo $reader=$null >>"%PSEL%"
+echo $readTask=$null >>"%PSEL%"
+echo $oldControlMode=$null >>"%PSEL%"
+echo try { >>"%PSEL%"
+echo     try { >>"%PSEL%"
+echo         $redirected=[Console]::IsInputRedirected >>"%PSEL%"
+echo         if(-not $redirected){ >>"%PSEL%"
+echo             $oldControlMode=[Console]::TreatControlCAsInput >>"%PSEL%"
+echo             [Console]::TreatControlCAsInput=$true >>"%PSEL%"
+echo         } >>"%PSEL%"
+echo     }catch{$redirected=$true} >>"%PSEL%"
+echo     if($redirected){ >>"%PSEL%"
+echo         $reader=New-Object IO.StreamReader([Console]::OpenStandardInput()) >>"%PSEL%"
+echo         $readTask=$reader.ReadLineAsync() >>"%PSEL%"
+echo     } >>"%PSEL%"
+echo     while($watch.Elapsed.TotalSeconds -lt $seconds){ >>"%PSEL%"
+echo         $remaining=[math]::Max(1,[int][math]::Ceiling($seconds-$watch.Elapsed.TotalSeconds)) >>"%PSEL%"
+echo         if($remaining -ne $last){ >>"%PSEL%"
+echo             Write-Host -NoNewline (([string][char]13)+'  Escolha S, F, N ou A - '+$remaining+'s restantes (sem resposta = A):     ') >>"%PSEL%"
+echo             $last=$remaining >>"%PSEL%"
+echo         } >>"%PSEL%"
+echo         $key='' >>"%PSEL%"
+echo         if($redirected){ >>"%PSEL%"
+echo             if($null -ne $readTask -and $readTask.IsCompleted){ >>"%PSEL%"
+echo                 $line=$readTask.GetAwaiter().GetResult() >>"%PSEL%"
+echo                 if($null -eq $line){$readTask=$null} >>"%PSEL%"
+echo                 else{ >>"%PSEL%"
+echo                     $line=$line.Trim() >>"%PSEL%"
+echo                     if($line.Length -gt 0){$key=$line.Substring(0,1).ToUpperInvariant()} >>"%PSEL%"
+echo                     $readTask=$reader.ReadLineAsync() >>"%PSEL%"
+echo                 } >>"%PSEL%"
+echo             } >>"%PSEL%"
+echo         }else{ >>"%PSEL%"
+echo             try { >>"%PSEL%"
+echo                 if([Console]::KeyAvailable){$key=([string][Console]::ReadKey($true).KeyChar).ToUpperInvariant()} >>"%PSEL%"
+echo             }catch{ >>"%PSEL%"
+echo                 $redirected=$true >>"%PSEL%"
+echo                 $reader=New-Object IO.StreamReader([Console]::OpenStandardInput()) >>"%PSEL%"
+echo                 $readTask=$reader.ReadLineAsync() >>"%PSEL%"
+echo             } >>"%PSEL%"
+echo         } >>"%PSEL%"
+echo         if($map.ContainsKey($key)){$selected=$key;break} >>"%PSEL%"
+echo         Start-Sleep -Milliseconds 50 >>"%PSEL%"
+echo     } >>"%PSEL%"
+echo     Write-Host '' >>"%PSEL%"
+echo     if($null -eq $selected){ >>"%PSEL%"
+echo         $result='A_AUTOMATICO' >>"%PSEL%"
+echo         Write-Host '  Tempo esgotado. Registrado A - nao foi acompanhado.' >>"%PSEL%"
+echo     }else{ >>"%PSEL%"
+echo         $result=$selected >>"%PSEL%"
+echo         Write-Host ('  Opcao registrada: '+$selected) >>"%PSEL%"
+echo     } >>"%PSEL%"
+echo     if($Resultado){[IO.File]::WriteAllText($Resultado,$result,(New-Object Text.UTF8Encoding($false)))} >>"%PSEL%"
+echo } finally { >>"%PSEL%"
+echo     if($null -ne $oldControlMode){try{[Console]::TreatControlCAsInput=$oldControlMode}catch{}} >>"%PSEL%"
+echo } >>"%PSEL%"
+echo exit 0 >>"%PSEL%"
+set "LIVE_RES=%CTL%\live_escolha_%RANDOM%.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PSEL%" -Segundos 15 -Resultado "%LIVE_RES%"
+set "LIVE_OP=4"
+set "LIVE_RESPOSTA=A_AUTOMATICO"
+if exist "%LIVE_RES%" set /p "LIVE_RESPOSTA="<"%LIVE_RES%"
+if /i "%LIVE_RESPOSTA%"=="S" set "LIVE_OP=1"
+if /i "%LIVE_RESPOSTA%"=="F" set "LIVE_OP=2"
+if /i "%LIVE_RESPOSTA%"=="N" set "LIVE_OP=3"
+if /i "%LIVE_RESPOSTA%"=="A_AUTOMATICO" set "LIVE_RELATO=NAO ACOMPANHADO - sem resposta do tecnico em 15 segundos; opcao A automatica."
+if defined LIVE_ESC echo %LIVE_ESC%[0m
+color 0A
+if "%LIVE_OP%"=="1" set "LIVE_RELATO=TRAVOU DURANTE o teste de velocidade - relato do tecnico; causa nao determinada."
+if "%LIVE_OP%"=="2" set "LIVE_RELATO=TRAVOU FORA do teste de velocidade - relato do tecnico sobre video/live; causa nao determinada."
+if "%LIVE_OP%"=="3" set "LIVE_RELATO=ACOMPANHADA SEM TRAVAR neste atendimento - relato do tecnico."
+:LIVE_REGISTRAR
+>"%LAUDO%\OBSERVACAO_LIVE.txt" echo %LIVE_RELATO%
+
+echo Gerando o laudo...
 :: =========================================================
 :: LAUDO TECNICO + VOZ + TEXTO DO TELEGRAM (falar_status.ps1)
 :: =========================================================
@@ -2132,6 +2780,19 @@ echo         if ($voz) { $voz.Dispose() } >>"%PFALA%"
 echo     } >>"%PFALA%"
 echo } >>"%PFALA%"
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
+if errorlevel 1 (
+  echo [ERRO] Falha ao gerar o laudo. Os logs brutos foram preservados.
+  pause
+  exit /b 1
+)
+if not exist "%LAUDO%\VEREDITO.txt" (
+  echo [ERRO] VEREDITO.txt nao foi gerado. Confira os registros em %LAUDO%
+  pause
+  exit /b 1
+)
+
+if /i not "%TG_ENVIAR%"=="sim" goto TELEGRAM_CONCLUIDO
 :: =========================================================
 :: ENVIO PARA O TELEGRAM (tg_send.ps1)
 ::   - HttpClient: SEMPRE mostra a resposta real da API
@@ -2196,669 +2857,8 @@ echo Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue >>"%PTG%"
 echo Write-Host "" >>"%PTG%"
 echo Write-Host "  'chat not found' = ID errado / 'bot is not a member' = adicione o bot no grupo" -ForegroundColor DarkGray >>"%PTG%"
 
-:: =========================================================
-:: ESPERA COM Ctrl+C / F (aguardar.ps1)
-:: =========================================================
-set "PWAIT=%TEMP%\aguardar_%STAMP%_%RANDOM%.ps1"
-del "%PWAIT%" >nul 2>&1
-echo param($segundos, $gw, $alvo, $mins, $tec, $conx, $controlFolder) >>"%PWAIT%"
-echo if (-not $segundos) { $segundos = 900 } >>"%PWAIT%"
-echo [Console]::TreatControlCAsInput = $true >>"%PWAIT%"
-echo $hb = Join-Path $controlFolder 'heartbeat.flag' >>"%PWAIT%"
-echo $fim = (Get-Date).AddSeconds([int]$segundos) >>"%PWAIT%"
-echo $ini = Get-Date >>"%PWAIT%"
-echo $durFile = Join-Path $controlFolder 'tempo_seg.txt' >>"%PWAIT%"
-echo try { >>"%PWAIT%"
-echo while ((Get-Date) -lt $fim) { >>"%PWAIT%"
-echo try { Set-Content -Path $hb -Value ([string](Get-Date).Ticks) -ErrorAction SilentlyContinue } catch {} >>"%PWAIT%"
-echo $rest = [int][math]::Floor(($fim - (Get-Date)).TotalSeconds) >>"%PWAIT%"
-echo if ($rest -lt 0) { $rest = 0 } >>"%PWAIT%"
-echo $m = [int][math]::Floor($rest / 60) >>"%PWAIT%"
-echo $s = $rest - ($m * 60) >>"%PWAIT%"
-echo Clear-Host >>"%PWAIT%"
-echo Write-Host "=====================================================" >>"%PWAIT%"
-echo Write-Host ("       LAUDO DE REDE v%VER% - Tecnico: " + $tec) >>"%PWAIT%"
-echo Write-Host "=====================================================" >>"%PWAIT%"
-echo Write-Host ("  Roteador : " + $gw) >>"%PWAIT%"
-echo Write-Host ("  Internet : " + $alvo) >>"%PWAIT%"
-echo Write-Host ("  Conexao  : " + $conx) >>"%PWAIT%"
-echo Write-Host ("  Teste de : " + $mins + " minutos") >>"%PWAIT%"
-echo Write-Host ("  TEMPO RESTANTE: " + ("{0:00}:{1:00}" -f $m, $s)) >>"%PWAIT%"
-echo Write-Host ("") >>"%PWAIT%"
-echo Write-Host "  Aperte F para encerrar agora e gerar o laudo." -ForegroundColor Green >>"%PWAIT%"
-echo Write-Host "  Ctrl+C aborta tudo e NAO gera laudo nem envia nada." -ForegroundColor Yellow >>"%PWAIT%"
-echo Write-Host "=====================================================" >>"%PWAIT%"
-echo $t0 = Get-Date >>"%PWAIT%"
-echo while (((Get-Date) - $t0).TotalMilliseconds -lt 1000) { >>"%PWAIT%"
-echo if ([Console]::KeyAvailable) { >>"%PWAIT%"
-echo $k = [Console]::ReadKey($true) >>"%PWAIT%"
-echo if ($k.Key -eq 'F') { return } >>"%PWAIT%"
-echo if (($k.Modifiers -band [ConsoleModifiers]::Control) -and ($k.Key -eq 'C')) { return } >>"%PWAIT%"
-echo } >>"%PWAIT%"
-echo Start-Sleep -Milliseconds 80 >>"%PWAIT%"
-echo } >>"%PWAIT%"
-echo } >>"%PWAIT%"
-echo } finally { >>"%PWAIT%"
-echo $dec = [int][math]::Round(((Get-Date) - $ini).TotalSeconds) >>"%PWAIT%"
-echo try { [System.IO.File]::WriteAllText($durFile, [string]$dec) } catch {} >>"%PWAIT%"
-echo } >>"%PWAIT%"
-
-set "PVEL=%TEMP%\lr_velocidade_%STAMP%_%RANDOM%.ps1"
-del "%PVEL%" >nul 2>&1
-echo param([string]$ControlScript,[string]$Exe,[string]$ArgumentLine,[string]$Pasta,[string]$Tipo,[int]$Intervalo) >>"%PVEL%"
-echo $ErrorActionPreference='Stop' >>"%PVEL%"
-echo . $ControlScript >>"%PVEL%"
-echo Initialize-LaudoControl (Join-Path $Pasta '_controle') >>"%PVEL%"
-echo Register-LaudoWorker >>"%PVEL%"
-echo $log=Join-Path $Pasta $(if($Tipo -eq 'speed'){'speedlog.txt'}else{'fastlog.txt'}) >>"%PVEL%"
-echo $flag=Join-Path $Pasta ('_sat_'+$Tipo+'.flag') >>"%PVEL%"
-echo $name=if($Tipo -eq 'speed'){'SPEEDTEST'}else{'FAST'} >>"%PVEL%"
-echo $encoding=New-Object Text.UTF8Encoding($false) >>"%PVEL%"
-echo $stream=New-Object IO.FileStream($log,[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::ReadWrite) >>"%PVEL%"
-echo $writer=New-Object IO.StreamWriter($stream,$encoding) >>"%PVEL%"
-echo $writer.AutoFlush=$true >>"%PVEL%"
-echo try { >>"%PVEL%"
-echo     while(-not (Test-LaudoStop)){ >>"%PVEL%"
-echo         $writer.WriteLine('-----------------------------') >>"%PVEL%"
-echo         $writer.WriteLine($name+' EM '+(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) >>"%PVEL%"
-echo         [IO.File]::WriteAllText($flag,'ativo') >>"%PVEL%"
-echo         try { >>"%PVEL%"
-echo             $capture={param($line) $writer.WriteLine($line);Write-Host $line} >>"%PVEL%"
-echo             Invoke-LaudoNative -Exe $Exe -Arguments $ArgumentLine -OnOut $capture -OnError $capture >>"%PVEL%"
-echo             if($script:LaudoNativeInterrupted){$writer.WriteLine('[RODADA INTERROMPIDA]')} >>"%PVEL%"
-echo             elseif($script:LaudoNativeExitCode -eq 0){$writer.WriteLine('[RODADA CONCLUIDA codigo=0]')} >>"%PVEL%"
-echo             else {$writer.WriteLine('[RODADA COM ERRO codigo='+$script:LaudoNativeExitCode+']')} >>"%PVEL%"
-echo         } catch {$writer.WriteLine('[RODADA COM ERRO] '+$_.Exception.Message)} >>"%PVEL%"
-echo         finally {try{[IO.File]::Delete($flag)}catch{};$writer.Flush()} >>"%PVEL%"
-echo         if(Test-LaudoStop){break} >>"%PVEL%"
-echo         $next=(Get-Date).AddSeconds([math]::Max(5,$Intervalo)) >>"%PVEL%"
-echo         while((Get-Date) -lt $next -and -not (Test-LaudoStop)){Start-Sleep -Milliseconds 150} >>"%PVEL%"
-echo     } >>"%PVEL%"
-echo } finally { >>"%PVEL%"
-echo     $writer.Dispose() >>"%PVEL%"
-echo     try{[IO.File]::Delete($flag)}catch{} >>"%PVEL%"
-echo     Unregister-LaudoWorker >>"%PVEL%"
-echo } >>"%PVEL%"
-echo exit 0 >>"%PVEL%"
-set "PMET=%TEMP%\lr_metricas_%STAMP%_%RANDOM%.ps1"
-del "%PMET%" >nul 2>&1
-echo param([string]$Pasta) >>"%PMET%"
-echo $ErrorActionPreference='Stop' >>"%PMET%"
-echo $ci=[Globalization.CultureInfo]::InvariantCulture >>"%PMET%"
-echo function Number([string]$v){[double]::Parse($v.Replace(',','.'),$ci)} >>"%PMET%"
-echo function Rate($m) { >>"%PMET%"
-echo     if(-not $m.Success){return $null} >>"%PMET%"
-echo     $value=Number $m.Groups[1].Value >>"%PMET%"
-echo     switch -Regex ($m.Groups[2].Value) { >>"%PMET%"
-echo         '^^(?i)K' {$value=$value/1000;break} >>"%PMET%"
-echo         '^^(?i)G' {$value=$value*1000;break} >>"%PMET%"
-echo         '^^(?i)T' {$value=$value*1000000;break} >>"%PMET%"
-echo         '^^(?i)M' {break} >>"%PMET%"
-echo         default {$value=$value/1000000} >>"%PMET%"
-echo     } >>"%PMET%"
-echo     return [math]::Round($value,3) >>"%PMET%"
-echo } >>"%PMET%"
-echo function Display($v,[string]$unit){if($null -eq $v){'nao medido'}else{([double]$v).ToString('0.###',$ci)+' '+$unit}} >>"%PMET%"
-echo $rows=New-Object Collections.ArrayList >>"%PMET%"
-echo $summary=New-Object Collections.ArrayList >>"%PMET%"
-echo [void]$summary.Add('VELOCIDADE - RESULTADOS GRAVADOS') >>"%PMET%"
-echo foreach($source in @(@('OOKLA','speedlog.txt','SPEEDTEST'),@('FAST','fastlog.txt','FAST'))){ >>"%PMET%"
-echo     $path=Join-Path $Pasta $source[1] >>"%PMET%"
-echo     if(-not (Test-Path -LiteralPath $path)){ >>"%PMET%"
-echo         [void]$summary.Add($source[0]+': sem log de execucao; velocidade nao medida.') >>"%PMET%"
-echo         continue >>"%PMET%"
-echo     } >>"%PMET%"
-echo     $text=Get-Content -LiteralPath $path -Raw -Encoding UTF8 >>"%PMET%"
-echo     $text=[regex]::Replace([string]$text,[string][char]27+'\[[0-9;?]*[A-Za-z]','') >>"%PMET%"
-echo     $blocks=@([regex]::Split($text,'(?m)^^(?='+$source[2]+' EM )')^|Where-Object {$_ -match ('(?m)^^'+$source[2]+' EM ')}) >>"%PMET%"
-echo     if($blocks.Count -eq 0){$blocks=@($text)} >>"%PMET%"
-echo     $round=0 >>"%PMET%"
-echo     foreach($block in $blocks){ >>"%PMET%"
-echo         $round++ >>"%PMET%"
-echo         $dl=[regex]::Match($block,'(?im)^^\s*Download\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*([KMGT]?(?:bps^|bit/s))') >>"%PMET%"
-echo         $ul=[regex]::Match($block,'(?im)^^\s*Upload\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*([KMGT]?(?:bps^|bit/s))') >>"%PMET%"
-echo         $download=Rate $dl;$upload=Rate $ul >>"%PMET%"
-echo         $idle=$null;$jitter=$null;$loss=$null;$dlLatency=$null;$ulLatency=$null >>"%PMET%"
-echo         $m=[regex]::Match($block,'(?im)^^\s*(?:Idle Latency^|Latency^|Ping)\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*ms(?:\s*\(jitter:\s*([0-9]+(?:[.,][0-9]+)?)ms)?') >>"%PMET%"
-echo         if($m.Success){$idle=Number $m.Groups[1].Value;if($m.Groups[2].Success){$jitter=Number $m.Groups[2].Value}} >>"%PMET%"
-echo         $m=[regex]::Match($block,'(?im)^^\s*Packet Loss:\s*([0-9]+(?:[.,][0-9]+)?)\s*%%') >>"%PMET%"
-echo         if($m.Success){$loss=Number $m.Groups[1].Value} >>"%PMET%"
-echo         if($dl.Success){ >>"%PMET%"
-echo             $end=if($ul.Success){$ul.Index}else{$block.Length} >>"%PMET%"
-echo             $m=[regex]::Match($block.Substring($dl.Index+$dl.Length,$end-($dl.Index+$dl.Length)),'(?m)^^\s*([0-9]+(?:[.,][0-9]+)?)\s*ms\s*\(jitter:') >>"%PMET%"
-echo             if($m.Success){$dlLatency=Number $m.Groups[1].Value} >>"%PMET%"
-echo         } >>"%PMET%"
-echo         if($ul.Success){ >>"%PMET%"
-echo             $m=[regex]::Match($block.Substring($ul.Index+$ul.Length),'(?m)^^\s*([0-9]+(?:[.,][0-9]+)?)\s*ms\s*\(jitter:') >>"%PMET%"
-echo             if($m.Success){$ulLatency=Number $m.Groups[1].Value} >>"%PMET%"
-echo         } >>"%PMET%"
-echo         $url=[regex]::Match($block,'(?im)^^\s*Result URL:\s*(https://\S+)').Groups[1].Value >>"%PMET%"
-echo         $status='SEM METRICAS RECONHECIDAS' >>"%PMET%"
-echo         $complete=($null -ne $download -and $null -ne $upload) >>"%PMET%"
-echo         if($source[0] -eq 'FAST'){$complete=($null -ne $download)} >>"%PMET%"
-echo         if($block -match '\[RODADA INTERROMPIDA\]'){$status='PARCIAL - INTERROMPIDA'} >>"%PMET%"
-echo         elseif($block -match '\[RODADA COM ERRO'){$status='ERRO'} >>"%PMET%"
-echo         elseif($complete -and ($url -or $block -match '\[RODADA CONCLUIDA codigo=0\]')){$status='CONCLUIDA'} >>"%PMET%"
-echo         elseif($null -ne $download -or $null -ne $upload){$status='PARCIAL - SEM CONFIRMACAO DE CONCLUSAO'} >>"%PMET%"
-echo         $row=[pscustomobject]@{fonte=$source[0];rodada=$round;status=$status;download_mbps=$download;upload_mbps=$upload;latencia_ociosa_ms=$idle;jitter_ocioso_ms=$jitter;latencia_download_ms=$dlLatency;latencia_upload_ms=$ulLatency;perda_percentual=$loss;url=$url} >>"%PMET%"
-echo         [void]$rows.Add($row) >>"%PMET%"
-echo         [void]$summary.Add(('{0} rodada {1}: {2}; download {3}; upload {4}; latencia ociosa {5}; sob download {6}; sob upload {7}; perda {8}.' -f $row.fonte,$round,$status,(Display $download 'Mbps'),(Display $upload 'Mbps'),(Display $idle 'ms'),(Display $dlLatency 'ms'),(Display $ulLatency 'ms'),(Display $loss '%%'))) >>"%PMET%"
-echo     } >>"%PMET%"
-echo } >>"%PMET%"
-echo foreach($row in $rows){foreach($property in $row.PSObject.Properties){if($property.Value -is [double]){$property.Value=$property.Value.ToString('0.###',$ci)}}} >>"%PMET%"
-echo if($rows.Count -gt 0){$rows^|Export-Csv -LiteralPath (Join-Path $Pasta 'VELOCIDADE.csv') -NoTypeInformation -Delimiter ';' -Encoding UTF8} >>"%PMET%"
-echo else{Set-Content -LiteralPath (Join-Path $Pasta 'VELOCIDADE.csv') -Value 'fonte;rodada;status;download_mbps;upload_mbps;latencia_ociosa_ms;jitter_ocioso_ms;latencia_download_ms;latencia_upload_ms;perda_percentual;url' -Encoding UTF8} >>"%PMET%"
-echo [void]$summary.Add('Valores ausentes sao NAO MEDIDOS, nao zero. Rodadas parciais nao certificam download/upload completos. Logs brutos preservados.') >>"%PMET%"
-echo Set-Content -LiteralPath (Join-Path $Pasta 'VELOCIDADE_RESUMO.txt') -Value $summary -Encoding UTF8 >>"%PMET%"
-break>"%CTL%\heartbeat.flag" 2>nul
-if defined SPEEDEXE (
-  set "speed_BAT=%TEMP%\speed_loop_%STAMP%_%RANDOM%.bat"
-  > "!speed_BAT!" (
-    echo @echo off
-    echo chcp 65001 ^>nul
-    echo title LAUDO_SPEED
-    echo color 0B
-    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%SPEEDEXE%" -ArgumentLine " %SPEEDARGS%" -Pasta "%LAUDO%" -Tipo speed -Intervalo %INTERVALO_SPEED%
-    echo exit /b 0
-  )
-  start "LAUDO_SPEED" cmd /d /c call "!speed_BAT!"
-)
-if defined FASTEXE (
-  set "fast_BAT=%TEMP%\fast_loop_%STAMP%_%RANDOM%.bat"
-  > "!fast_BAT!" (
-    echo @echo off
-    echo chcp 65001 ^>nul
-    echo title LAUDO_FAST
-    echo color 0D
-    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%FASTEXE%" -ArgumentLine " %FASTARGS%" -Pasta "%LAUDO%" -Tipo fast -Intervalo %INTERVALO_FAST%
-    echo exit /b 0
-  )
-  start "LAUDO_FAST" cmd /d /c call "!fast_BAT!"
-)
-
-:: ABA 9 - LOOP DO SERVIDOR PROPRIO (constante, sem marcar [SAT])
-if not defined SRV_OK goto ABA9_SEM_JANELA
-set "PSRV=%TEMP%\srv_speed_%STAMP%_%RANDOM%.ps1"
-del "%PSRV%" >nul 2>&1
-echo param($base, $usuario, $senha, $mbps, $mbpsUp, $direcao, $logf, $cxDl, $cxUp, $segBloco) >>"%PSRV%"
-echo . '%PCTRL%' >>"%PSRV%"
-echo Initialize-LaudoControl (Join-Path (Split-Path $logf -Parent) '_controle') >>"%PSRV%"
-echo Register-LaudoWorker >>"%PSRV%"
-echo try { >>"%PSRV%"
-echo $ErrorActionPreference = "SilentlyContinue" >>"%PSRV%"
-echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 >>"%PSRV%"
-echo [Net.ServicePointManager]::DefaultConnectionLimit = 64 >>"%PSRV%"
-echo [Net.ServicePointManager]::Expect100Continue = $false >>"%PSRV%"
-echo Add-Type -AssemblyName System.Net.Http >>"%PSRV%"
-echo $base = ([string]$base).TrimEnd("/") >>"%PSRV%"
-echo $alvo = [int]$mbps >>"%PSRV%"
-echo $alvoUp = [int]$mbpsUp >>"%PSRV%"
-echo if ($alvoUp -le 0) { $alvoUp = $alvo } >>"%PSRV%"
-echo $dirCfg = ([string]$direcao).ToLower() >>"%PSRV%"
-echo $conxD = [int]$cxDl >>"%PSRV%"
-echo if ($conxD -lt 1) { $conxD = 1 } >>"%PSRV%"
-echo if ($conxD -gt 8) { $conxD = 8 } >>"%PSRV%"
-echo $conxU = [int]$cxUp >>"%PSRV%"
-echo if ($conxU -lt 1) { $conxU = 1 } >>"%PSRV%"
-echo if ($conxU -gt 8) { $conxU = 8 } >>"%PSRV%"
-echo $bloco = [int]$segBloco >>"%PSRV%"
-echo if ($bloco -lt 5) { $bloco = 60 } >>"%PSRV%"
-echo $q = [char]34 >>"%PSRV%"
-echo $hbArq = Join-Path $script:LaudoControlFolder "heartbeat.flag" >>"%PSRV%"
-echo $viuHb = $false >>"%PSRV%"
-echo $efeD = 0.0 >>"%PSRV%"
-echo $efeU = 0.0 >>"%PSRV%"
-echo $avisou = "" >>"%PSRV%"
-echo $segD = 0.0 >>"%PSRV%"
-echo $bytesD = [long]0 >>"%PSRV%"
-echo $melhorD = 0.0 >>"%PSRV%"
-echo $piorD = 0.0 >>"%PSRV%"
-echo $segU = 0.0 >>"%PSRV%"
-echo $bytesU = [long]0 >>"%PSRV%"
-echo $melhorU = 0.0 >>"%PSRV%"
-echo $piorU = 0.0 >>"%PSRV%"
-echo $h = New-Object System.Net.Http.HttpClientHandler >>"%PSRV%"
-echo $h.AllowAutoRedirect = $false >>"%PSRV%"
-echo $h.UseCookies = $true >>"%PSRV%"
-echo $h.CookieContainer = New-Object System.Net.CookieContainer >>"%PSRV%"
-echo $h.MaxConnectionsPerServer = 64 >>"%PSRV%"
-echo $cli = New-Object System.Net.Http.HttpClient($h) >>"%PSRV%"
-echo $cli.Timeout = [TimeSpan]::FromSeconds(30) >>"%PSRV%"
-echo function Vivo { >>"%PSRV%"
-echo if (Test-LaudoStop) { return $false } >>"%PSRV%"
-echo if (-not $script:viuHb) { >>"%PSRV%"
-echo if (Test-Path $script:hbArq) { $script:viuHb = $true } >>"%PSRV%"
-echo return $true >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if (-not (Test-Path $script:hbArq)) { return $false } >>"%PSRV%"
-echo $idade = ((Get-Date) - (Get-Item $script:hbArq).LastWriteTime).TotalSeconds >>"%PSRV%"
-echo if ($idade -gt 90) { return $false } >>"%PSRV%"
-echo return $true >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function Anota($txt) { >>"%PSRV%"
-echo Write-Host $txt >>"%PSRV%"
-echo try { Add-Content -Path $script:logf -Value $txt } catch { } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function Fmt($v) { >>"%PSRV%"
-echo return ("{0:0.0}" -f [double]$v) >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function Hora { >>"%PSRV%"
-echo return ("[" + (Get-Date).ToString("HH:mm:ss") + "]  ") >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function Entrar { >>"%PSRV%"
-echo try { >>"%PSRV%"
-echo $corpo = "username=" + [uri]::EscapeDataString([string]$usuario) + "&password=" + [uri]::EscapeDataString([string]$senha) >>"%PSRV%"
-echo $sc = New-Object System.Net.Http.StringContent($corpo, [System.Text.Encoding]::UTF8, "application/x-www-form-urlencoded") >>"%PSRV%"
-echo $r = $cli.PostAsync(($base + "/login"), $sc).Result >>"%PSRV%"
-echo foreach ($c in $h.CookieContainer.GetCookies([Uri]$base)) { if ($c.Name -eq "sid") { return $true } } >>"%PSRV%"
-echo } catch { } >>"%PSRV%"
-echo return $false >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function Comecar($dir) { >>"%PSRV%"
-echo try { >>"%PSRV%"
-echo $pedido = $alvo >>"%PSRV%"
-echo if ($dir -eq "upload") { $pedido = $alvoUp } >>"%PSRV%"
-echo $j = "{" + $q + "direction" + $q + ":" + $q + $dir + $q + "," + $q + "mbps" + $q + ":" + [string]$pedido + "}" >>"%PSRV%"
-echo $sc = New-Object System.Net.Http.StringContent($j, [System.Text.Encoding]::UTF8, "application/json") >>"%PSRV%"
-echo $r = $cli.PostAsync(($base + "/test/start"), $sc).Result >>"%PSRV%"
-echo $txt = [string]$r.Content.ReadAsStringAsync().Result >>"%PSRV%"
-echo $o = ConvertFrom-Json -InputObject $txt >>"%PSRV%"
-echo $efe = 0.0 >>"%PSRV%"
-echo if ($o.mbps) { $efe = [double]$o.mbps } >>"%PSRV%"
-echo if ($dir -eq "upload") { $script:efeU = $efe } else { $script:efeD = $efe } >>"%PSRV%"
-echo if ($efe -gt 0 -and $efe -lt $pedido -and -not $script:avisou.Contains($dir)) { >>"%PSRV%"
-echo $script:avisou = $script:avisou + $dir >>"%PSRV%"
-echo Anota ((Hora) + "[INFO] o servidor limitou o " + $dir + " a " + (Fmt $efe) + " Mbps - teto deste login.") >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if ($o.test_id) { return [string]$o.test_id } >>"%PSRV%"
-echo if ($o.error) { Anota ((Hora) + "[SERVIDOR] " + [string]$o.error) } >>"%PSRV%"
-echo } catch { } >>"%PSRV%"
-echo return "" >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function Parar($id) { >>"%PSRV%"
-echo try { >>"%PSRV%"
-echo $j = "{" + $q + "test_id" + $q + ":" + $q + $id + $q + "}" >>"%PSRV%"
-echo $sc = New-Object System.Net.Http.StringContent($j, [System.Text.Encoding]::UTF8, "application/json") >>"%PSRV%"
-echo $r = $cli.PostAsync(($base + "/test/stop"), $sc).Result >>"%PSRV%"
-echo $nada = [string]$r.Content.ReadAsStringAsync().Result >>"%PSRV%"
-echo } catch { } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function FaseDown($id, $limiteSeg, $nconx) { >>"%PSRV%"
-echo $tot = [long]0 >>"%PSRV%"
-echo $b5 = [long]0 >>"%PSRV%"
-echo $t5 = 0.0 >>"%PSRV%"
-echo $b30 = [long]0 >>"%PSRV%"
-echo $t30 = 0.0 >>"%PSRV%"
-echo $sts = New-Object System.Collections.ArrayList >>"%PSRV%"
-echo $resps = New-Object System.Collections.ArrayList >>"%PSRV%"
-echo $bufs = New-Object System.Collections.ArrayList >>"%PSRV%"
-echo $sw = [System.Diagnostics.Stopwatch]::StartNew() >>"%PSRV%"
-echo try { >>"%PSRV%"
-echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
-echo $url = $base + "/download?test_id=" + $id + "&n=" + [string]$nconx >>"%PSRV%"
-echo $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $url) >>"%PSRV%"
-echo $resp = $cli.SendAsync($req, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result >>"%PSRV%"
-echo if (-not $resp.IsSuccessStatusCode) { >>"%PSRV%"
-echo Anota ((Hora) + "[ERRO] o servidor recusou o download - HTTP " + [string][int]$resp.StatusCode) >>"%PSRV%"
-echo Start-Sleep -Seconds 3 >>"%PSRV%"
-echo break >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $nada = $resps.Add($resp) >>"%PSRV%"
-echo $nada = $sts.Add($resp.Content.ReadAsStreamAsync().Result) >>"%PSRV%"
-echo $nada = $bufs.Add((New-Object byte[] 65536)) >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $abertas = $sts.Count >>"%PSRV%"
-echo if ($abertas -gt 0) { >>"%PSRV%"
-echo while ($true) { >>"%PSRV%"
-echo $tarefas = New-Object System.Collections.ArrayList >>"%PSRV%"
-echo for ($i = 0; $i -lt $abertas; $i++) { $nada = $tarefas.Add($sts[$i].ReadAsync($bufs[$i], 0, 65536)) } >>"%PSRV%"
-echo [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tarefas.ToArray()) >>"%PSRV%"
-echo $lidos = 0 >>"%PSRV%"
-echo for ($i = 0; $i -lt $abertas; $i++) { $lidos = $lidos + [int]$tarefas[$i].Result } >>"%PSRV%"
-echo if ($lidos -le 0) { break } >>"%PSRV%"
-echo $tot = $tot + $lidos >>"%PSRV%"
-echo $seg = $sw.Elapsed.TotalSeconds >>"%PSRV%"
-echo if (($seg - $t5) -ge 5) { >>"%PSRV%"
-echo $v5 = ($tot - $b5) * 8.0 / 1000000.0 / ($seg - $t5) >>"%PSRV%"
-echo Write-Host ("  DOWNLOAD   " + (Fmt $v5) + " Mbps   " + [string]$abertas + " cx") -ForegroundColor Cyan >>"%PSRV%"
-echo $b5 = $tot >>"%PSRV%"
-echo $t5 = $seg >>"%PSRV%"
-echo if (-not (Vivo)) { break } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if (($seg - $t30) -ge 30) { >>"%PSRV%"
-echo $v30 = ($tot - $b30) * 8.0 / 1000000.0 / ($seg - $t30) >>"%PSRV%"
-echo Anota ((Hora) + "DOWNLOAD  ultimos 30s: " + (Fmt $v30) + " Mbps   media do ciclo: " + (Fmt ($tot * 8.0 / 1000000.0 / $seg)) + " Mbps") >>"%PSRV%"
-echo $b30 = $tot >>"%PSRV%"
-echo $t30 = $seg >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if ($seg -ge $limiteSeg) { break } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo } catch { >>"%PSRV%"
-echo Anota ((Hora) + "[ERRO] falha no download: " + $_.Exception.GetBaseException().Message) >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $segf = $sw.Elapsed.TotalSeconds >>"%PSRV%"
-echo Parar $id >>"%PSRV%"
-echo foreach ($s in $sts) { try { $s.Close() } catch { } } >>"%PSRV%"
-echo foreach ($r in $resps) { try { $r.Dispose() } catch { } } >>"%PSRV%"
-echo if ($segf -le 0) { return } >>"%PSRV%"
-echo if ($tot -le 0) { return } >>"%PSRV%"
-echo $med = $tot * 8.0 / 1000000.0 / $segf >>"%PSRV%"
-echo Anota ((Hora) + "DOWNLOAD encerrado: media " + (Fmt $med) + " Mbps   " + (Fmt ($tot / 1000000.0)) + " MB em " + (Fmt $segf) + "s   " + [string]$nconx + " cx") >>"%PSRV%"
-echo $script:segD = $script:segD + $segf >>"%PSRV%"
-echo $script:bytesD = $script:bytesD + $tot >>"%PSRV%"
-echo if ($script:melhorD -le 0 -or $med -gt $script:melhorD) { $script:melhorD = $med } >>"%PSRV%"
-echo if ($script:piorD -le 0 -or $med -lt $script:piorD) { $script:piorD = $med } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo function FaseUp($id, $limiteSeg, $nconx) { >>"%PSRV%"
-echo $tam = 262144 >>"%PSRV%"
-echo $buf = New-Object byte[] $tam >>"%PSRV%"
-echo $rnd = New-Object System.Random >>"%PSRV%"
-echo $rnd.NextBytes($buf) >>"%PSRV%"
-echo $ref = [double]$alvoUp >>"%PSRV%"
-echo if ($efeU -gt 0) { $ref = [double]$efeU } >>"%PSRV%"
-echo $alvoBps = $ref * 1000000.0 / 8.0 >>"%PSRV%"
-echo if ($alvoBps -le 0) { $alvoBps = 1000000.0 } >>"%PSRV%"
-echo $url = $base + "/upload?test_id=" + $id >>"%PSRV%"
-echo $tot = [long]0 >>"%PSRV%"
-echo $b5 = [long]0 >>"%PSRV%"
-echo $t5 = 0.0 >>"%PSRV%"
-echo $b30 = [long]0 >>"%PSRV%"
-echo $t30 = 0.0 >>"%PSRV%"
-echo $sw = [System.Diagnostics.Stopwatch]::StartNew() >>"%PSRV%"
-echo while ($true) { >>"%PSRV%"
-echo $ruim = $false >>"%PSRV%"
-echo try { >>"%PSRV%"
-echo $tarefas = New-Object System.Collections.ArrayList >>"%PSRV%"
-echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
-echo $bc = New-Object System.Net.Http.ByteArrayContent(,$buf) >>"%PSRV%"
-echo $nada = $tarefas.Add($cli.PostAsync($url, $bc)) >>"%PSRV%"
-echo } >>"%PSRV%"
-echo [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tarefas.ToArray()) >>"%PSRV%"
-echo for ($i = 0; $i -lt $nconx; $i++) { >>"%PSRV%"
-echo $rr = $tarefas[$i].Result >>"%PSRV%"
-echo if (-not $rr.IsSuccessStatusCode) { >>"%PSRV%"
-echo Anota ((Hora) + "[ERRO] o servidor recusou o upload - HTTP " + [string][int]$rr.StatusCode) >>"%PSRV%"
-echo $ruim = $true >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $nada = [string]$rr.Content.ReadAsStringAsync().Result >>"%PSRV%"
-echo } >>"%PSRV%"
-echo } catch { $ruim = $true >>"%PSRV%"
-echo Anota ((Hora) + "[ERRO] falha no upload: " + $_.Exception.GetBaseException().Message) >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if ($ruim) { Start-Sleep -Seconds 3; break } >>"%PSRV%"
-echo $tot = $tot + ([long]$tam * $nconx) >>"%PSRV%"
-echo $seg = $sw.Elapsed.TotalSeconds >>"%PSRV%"
-echo if (($seg - $t5) -ge 5) { >>"%PSRV%"
-echo $v5 = ($tot - $b5) * 8.0 / 1000000.0 / ($seg - $t5) >>"%PSRV%"
-echo Write-Host ("  UPLOAD     " + (Fmt $v5) + " Mbps   " + [string]$nconx + " cx") -ForegroundColor Magenta >>"%PSRV%"
-echo $b5 = $tot >>"%PSRV%"
-echo $t5 = $seg >>"%PSRV%"
-echo if (-not (Vivo)) { break } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if (($seg - $t30) -ge 30) { >>"%PSRV%"
-echo $v30 = ($tot - $b30) * 8.0 / 1000000.0 / ($seg - $t30) >>"%PSRV%"
-echo Anota ((Hora) + "UPLOAD    ultimos 30s: " + (Fmt $v30) + " Mbps   media do ciclo: " + (Fmt ($tot * 8.0 / 1000000.0 / $seg)) + " Mbps") >>"%PSRV%"
-echo $b30 = $tot >>"%PSRV%"
-echo $t30 = $seg >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if ($seg -ge $limiteSeg) { break } >>"%PSRV%"
-echo $esperado = $tot / $alvoBps >>"%PSRV%"
-echo $espera = ($esperado - $seg) * 1000.0 >>"%PSRV%"
-echo if ($espera -gt 1) { Start-Sleep -Milliseconds ([int]$espera) } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $segf = $sw.Elapsed.TotalSeconds >>"%PSRV%"
-echo Parar $id >>"%PSRV%"
-echo if ($segf -le 0) { return } >>"%PSRV%"
-echo if ($tot -le 0) { return } >>"%PSRV%"
-echo $med = $tot * 8.0 / 1000000.0 / $segf >>"%PSRV%"
-echo Anota ((Hora) + "UPLOAD encerrado: media " + (Fmt $med) + " Mbps   " + (Fmt ($tot / 1000000.0)) + " MB em " + (Fmt $segf) + "s   " + [string]$nconx + " cx") >>"%PSRV%"
-echo $script:segU = $script:segU + $segf >>"%PSRV%"
-echo $script:bytesU = $script:bytesU + $tot >>"%PSRV%"
-echo if ($script:melhorU -le 0 -or $med -gt $script:melhorU) { $script:melhorU = $med } >>"%PSRV%"
-echo if ($script:piorU -le 0 -or $med -lt $script:piorU) { $script:piorU = $med } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $titulo = "LAUDO_SERVIDOR" >>"%PSRV%"
-echo if ($dirCfg -eq "download") { $titulo = "LAUDO_SERVIDOR - DOWNLOAD" } >>"%PSRV%"
-echo if ($dirCfg -eq "upload") { $titulo = "LAUDO_SERVIDOR - UPLOAD" } >>"%PSRV%"
-echo try { $host.UI.RawUI.WindowTitle = $titulo } catch { } >>"%PSRV%"
-echo Anota "=====================================================" >>"%PSRV%"
-echo Anota "  ABA 9 - VELOCIDADE NO SERVIDOR PROPRIO" >>"%PSRV%"
-echo Anota "=====================================================" >>"%PSRV%"
-echo Anota ("  Servidor : " + $base) >>"%PSRV%"
-echo Anota ("  Usuario  : " + [string]$usuario) >>"%PSRV%"
-echo Anota ("  Pedido   : download " + [string]$alvo + " Mbps    upload " + [string]$alvoUp + " Mbps") >>"%PSRV%"
-echo Anota ("  Conexoes : download " + [string]$conxD + "    upload " + [string]$conxU) >>"%PSRV%"
-echo Anota ("  Direcao  : " + $dirCfg) >>"%PSRV%"
-echo if ($dirCfg -eq "ambos") { Anota ("  Alterna a cada " + [string]$bloco + "s") } >>"%PSRV%"
-echo Anota ("  Inicio   : " + (Get-Date).ToString("dd/MM/yyyy HH:mm:ss")) >>"%PSRV%"
-echo Anota "  Roda sem parar ate o tempo do laudo acabar." >>"%PSRV%"
-echo Anota "-----------------------------------------------------" >>"%PSRV%"
-echo if (-not (Entrar)) { >>"%PSRV%"
-echo Anota "  [ERRO] nao consegui logar no servidor agora." >>"%PSRV%"
-echo Anota "  Confira se o servidor.py continua ligado e se a rede chega nele." >>"%PSRV%"
-echo Start-Sleep -Seconds 15 >>"%PSRV%"
-echo exit >>"%PSRV%"
-echo } >>"%PSRV%"
-echo $dir = "download" >>"%PSRV%"
-echo if ($dirCfg -eq "upload") { $dir = "upload" } >>"%PSRV%"
-echo $limite = 999999 >>"%PSRV%"
-echo if ($dirCfg -eq "ambos") { $limite = $bloco } >>"%PSRV%"
-echo while (Vivo) { >>"%PSRV%"
-echo $id = Comecar $dir >>"%PSRV%"
-echo if ($id -eq "") { >>"%PSRV%"
-echo Anota ((Hora) + "[AVISO] o servidor nao aceitou iniciar o teste de " + $dir + ". Nova tentativa em 5s.") >>"%PSRV%"
-echo Start-Sleep -Seconds 5 >>"%PSRV%"
-echo $nada = Entrar >>"%PSRV%"
-echo if ($dirCfg -eq "ambos") { if ($dir -eq "download") { $dir = "upload" } else { $dir = "download" } } >>"%PSRV%"
-echo continue >>"%PSRV%"
-echo } >>"%PSRV%"
-echo if ($dir -eq "download") { FaseDown $id $limite $conxD } else { FaseUp $id $limite $conxU } >>"%PSRV%"
-echo Parar $id >>"%PSRV%"
-echo if ($dirCfg -eq "ambos") { if ($dir -eq "download") { $dir = "upload" } else { $dir = "download" } } >>"%PSRV%"
-echo } >>"%PSRV%"
-echo Anota "-----------------------------------------------------" >>"%PSRV%"
-echo Anota ("  Fim      : " + (Get-Date).ToString("dd/MM/yyyy HH:mm:ss")) >>"%PSRV%"
-echo if ($segD -gt 0) { Anota ("  DOWNLOAD media geral: " + (Fmt ($bytesD * 8.0 / 1000000.0 / $segD)) + " Mbps   melhor: " + (Fmt $melhorD) + " Mbps   pior: " + (Fmt $piorD) + " Mbps   total: " + (Fmt ($bytesD / 1000000.0)) + " MB") } >>"%PSRV%"
-echo if ($segU -gt 0) { Anota ("  UPLOAD   media geral: " + (Fmt ($bytesU * 8.0 / 1000000.0 / $segU)) + " Mbps   melhor: " + (Fmt $melhorU) + " Mbps   pior: " + (Fmt $piorU) + " Mbps   total: " + (Fmt ($bytesU / 1000000.0)) + " MB") } >>"%PSRV%"
-echo if ($segD -le 0 -and $segU -le 0) { Anota "  [AVISO] nenhuma medicao valida foi concluida." } >>"%PSRV%"
-echo Anota "=====================================================" >>"%PSRV%"
-echo Write-Host "  Pode fechar esta janela." -ForegroundColor Yellow >>"%PSRV%"
-echo } finally { Unregister-LaudoWorker } >>"%PSRV%"
-echo exit 0 >>"%PSRV%"
-:: --- COMO ABRIR: alternado = 1 janela / juntos = 2 janelas ---
-set "SRV_LOG1=%LAUDO%\servidor_speed.txt"
-set "SRV_LOG2=%LAUDO%\servidor_speed_up.txt"
-if /i not "%SRV_DIRECAO%"=="ambos" goto ABA9_UMA_JANELA
-if /i not "%SRV_MODO%"=="juntos" goto ABA9_UMA_JANELA
-:: modo JUNTOS: duas janelas, uma so baixando e outra so enviando,
-:: ao mesmo tempo. Logs separados porque sao dois processos gravando.
-start "LAUDO_SRV_DL" cmd /d /c color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "download" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
-timeout /t 2 >nul
-start "LAUDO_SRV_UP" cmd /d /c color 0D ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "upload" "%SRV_LOG2%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
-goto ABA9_SEM_JANELA
-
-:ABA9_UMA_JANELA
-start "LAUDO_SERVIDOR" cmd /d /c color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "%SRV_DIRECAO%" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
-:ABA9_SEM_JANELA
-
-:: ABAS 1 a 6 - PINGS AO VIVO COM BIP
-echo Abrindo as abas de ping com BIP...
-
-start "LAUDO_PING_MODEM"    cmd /d /c color 0A ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%GW%" "%LAUDO%\ping_modem.txt" %LIMITE_ROTEADOR% %QTD_PING% ^& exit 0
-start "LAUDO_PING_INTERNET" cmd /d /c color 0E ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_INTERNET%" "%LAUDO%\ping_internet.txt" %LIMITE_INTERNET% %QTD_PING% 4 ^& exit 0
-start "LAUDO_PING_SERVIDOR" cmd /d /c color 0B ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%SERVIDOR%" "%LAUDO%\ping_servidor.txt" %LIMITE_SERVIDOR% %QTD_PING% ^& exit 0
-
-if defined ALVO_EXTRA (
-  start "LAUDO_PING_EXTRA" cmd /d /c color 0C ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA%" "%LAUDO%\ping_extra.txt" %LIMITE_EXTRA% %QTD_PING% 4 ^& exit 0
-)
-
-if "%TEM_IPV6%"=="1" (
-  start "LAUDO_PING_IPV6" cmd /d /c color 0F ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%IPV6_USADO%" "%LAUDO%\ping_ipv6.txt" %LIMITE_IPV6% %QTD_PING% 6 ^& exit 0
-) else (
-  echo   [INFO] Rede sem IPv6 - abas 5 e 6 NAO foram abertas.
-)
-
-if defined ALVO_EXTRA_IPV6 if "%TEM_IPV6%"=="1" (
-  start "LAUDO_PING_EXTRA6" cmd /d /c color 09 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA_IPV6%" "%LAUDO%\ping_extra6.txt" %LIMITE_EXTRA_IPV6% %QTD_PING% 6 ^& exit 0
-)
-echo.
-
-:: ESPERA (F encerra na hora e gera o laudo; Ctrl+C aborta sem laudo)
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PWAIT%" %QTD_PING% "%GW%" "%ALVO_INTERNET%" "%MINUTOS%" "%TECNICO%" "%CONEXAO%" "%CTL%"
-
-:: =========================================================
-:: FINALIZAR
-:: =========================================================
-:FINALIZAR
-cls
-echo Encerrando testes e gerando laudo tecnico...
-rem ---- duracao REAL do teste (le o que o contador PWAIT gravou) ----
-rem   se o tecnico apertar F e encerrar antes, o laudo mostra o tempo
-rem   que REALMENTE rodou, e nao o tempo pedido la no inicio.
-set "SEG_REAIS="
-if exist "%CTL%\tempo_seg.txt" set /p SEG_REAIS=<"%CTL%\tempo_seg.txt"
-if defined SEG_REAIS for /f "delims=0123456789" %%z in ("%SEG_REAIS%") do set "SEG_REAIS="
-if not defined SEG_REAIS set /a "SEG_REAIS=%QTD_PING%"
-set /a "MIN_REAIS=SEG_REAIS/60"
-set /a "SEG_RESTO=SEG_REAIS-(MIN_REAIS*60)"
-set "DUR_REAL=%MIN_REAIS% min %SEG_RESTO% s"
-del "%CTL%\tempo_seg.txt" >nul 2>&1
-echo Encerrando testes e aguardando a gravacao dos logs...
-set "PFIM=%TEMP%\lr_finalizar_%STAMP%_%RANDOM%.ps1"
-del "%PFIM%" >nul 2>&1
-echo param($controlScript,$folder) >>"%PFIM%"
-echo . $controlScript >>"%PFIM%"
-echo if (Stop-LaudoWorkers $folder 8) { exit 0 } else { exit 1 } >>"%PFIM%"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PFIM%" "%PCTRL%" "%CTL%"
-if errorlevel 1 (
-  echo [ERRO] Ainda ha um processo de teste ativo. Laudo nao sera gerado com logs em gravacao.
-  echo Pasta dos registros: %LAUDO%
-  pause
-  exit /b 1
-)
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PMET%" "%LAUDO%"
-if errorlevel 1 (
-  echo [ERRO] Falha ao extrair metricas de velocidade. Logs brutos preservados em %LAUDO%
-  pause
-  exit /b 1
-)
-
-:: v1057 - relato humano da live, apos encerrar testes e antes do laudo.
-set "LIVE_RELATO=NAO ACOMPANHADA - o script nao monitora a live."
-if /i not "%SATURA%"=="S" goto LIVE_REGISTRAR
-:: Destaque do menu: laranja no Windows Terminal, ambar no CMD classico.
-set "LIVE_ESC="
-if defined WT_SESSION for /f "delims=" %%E in ('powershell -NoProfile -Command "[char]27"') do set "LIVE_ESC=%%E"
-color 06
-if defined LIVE_ESC echo %LIVE_ESC%[38;2;255;165;0m
-echo.
-echo   ========================================================
-echo   ATENCAO - SELECIONE UMA OPCAO PARA FINALIZAR
-echo   VIDEO OU LIVE OBSERVADO DURANTE O ATENDIMENTO - observacao do tecnico
-echo   S = travou durante o teste de velocidade
-echo   F = travou sem teste de velocidade rodando
-echo   N = foi acompanhado e nao travou
-echo   A = nao foi acompanhado
-echo   ========================================================
-echo   Se nao responder em 15 segundos, sera registrado A.
-set "PSEL=%TEMP%\lr_escolha_%STAMP%_%RANDOM%.ps1"
-del "%PSEL%" >nul 2>&1
-echo param([int]$Segundos=15,[string]$Resultado) >>"%PSEL%"
-echo $ErrorActionPreference='Stop' >>"%PSEL%"
-echo $map=@{S=1;F=2;N=3;A=4} >>"%PSEL%"
-echo $selected=$null >>"%PSEL%"
-echo $seconds=[math]::Max(1,$Segundos) >>"%PSEL%"
-echo $watch=[Diagnostics.Stopwatch]::StartNew() >>"%PSEL%"
-echo $last=-1 >>"%PSEL%"
-echo $redirected=$true >>"%PSEL%"
-echo $reader=$null >>"%PSEL%"
-echo $readTask=$null >>"%PSEL%"
-echo $oldControlMode=$null >>"%PSEL%"
-echo try { >>"%PSEL%"
-echo     try { >>"%PSEL%"
-echo         $redirected=[Console]::IsInputRedirected >>"%PSEL%"
-echo         if(-not $redirected){ >>"%PSEL%"
-echo             $oldControlMode=[Console]::TreatControlCAsInput >>"%PSEL%"
-echo             [Console]::TreatControlCAsInput=$true >>"%PSEL%"
-echo         } >>"%PSEL%"
-echo     }catch{$redirected=$true} >>"%PSEL%"
-echo     if($redirected){ >>"%PSEL%"
-echo         $reader=New-Object IO.StreamReader([Console]::OpenStandardInput()) >>"%PSEL%"
-echo         $readTask=$reader.ReadLineAsync() >>"%PSEL%"
-echo     } >>"%PSEL%"
-echo     while($watch.Elapsed.TotalSeconds -lt $seconds){ >>"%PSEL%"
-echo         $remaining=[math]::Max(1,[int][math]::Ceiling($seconds-$watch.Elapsed.TotalSeconds)) >>"%PSEL%"
-echo         if($remaining -ne $last){ >>"%PSEL%"
-echo             Write-Host -NoNewline (([string][char]13)+'  Escolha S, F, N ou A - '+$remaining+'s restantes (sem resposta = A):     ') >>"%PSEL%"
-echo             $last=$remaining >>"%PSEL%"
-echo         } >>"%PSEL%"
-echo         $key='' >>"%PSEL%"
-echo         if($redirected){ >>"%PSEL%"
-echo             if($null -ne $readTask -and $readTask.IsCompleted){ >>"%PSEL%"
-echo                 $line=$readTask.GetAwaiter().GetResult() >>"%PSEL%"
-echo                 if($null -eq $line){$readTask=$null} >>"%PSEL%"
-echo                 else{ >>"%PSEL%"
-echo                     $line=$line.Trim() >>"%PSEL%"
-echo                     if($line.Length -gt 0){$key=$line.Substring(0,1).ToUpperInvariant()} >>"%PSEL%"
-echo                     $readTask=$reader.ReadLineAsync() >>"%PSEL%"
-echo                 } >>"%PSEL%"
-echo             } >>"%PSEL%"
-echo         }else{ >>"%PSEL%"
-echo             try { >>"%PSEL%"
-echo                 if([Console]::KeyAvailable){$key=([string][Console]::ReadKey($true).KeyChar).ToUpperInvariant()} >>"%PSEL%"
-echo             }catch{ >>"%PSEL%"
-echo                 $redirected=$true >>"%PSEL%"
-echo                 $reader=New-Object IO.StreamReader([Console]::OpenStandardInput()) >>"%PSEL%"
-echo                 $readTask=$reader.ReadLineAsync() >>"%PSEL%"
-echo             } >>"%PSEL%"
-echo         } >>"%PSEL%"
-echo         if($map.ContainsKey($key)){$selected=$key;break} >>"%PSEL%"
-echo         Start-Sleep -Milliseconds 50 >>"%PSEL%"
-echo     } >>"%PSEL%"
-echo     Write-Host '' >>"%PSEL%"
-echo     if($null -eq $selected){ >>"%PSEL%"
-echo         $result='A_AUTOMATICO' >>"%PSEL%"
-echo         Write-Host '  Tempo esgotado. Registrado A - nao foi acompanhado.' >>"%PSEL%"
-echo     }else{ >>"%PSEL%"
-echo         $result=$selected >>"%PSEL%"
-echo         Write-Host ('  Opcao registrada: '+$selected) >>"%PSEL%"
-echo     } >>"%PSEL%"
-echo     if($Resultado){[IO.File]::WriteAllText($Resultado,$result,(New-Object Text.UTF8Encoding($false)))} >>"%PSEL%"
-echo } finally { >>"%PSEL%"
-echo     if($null -ne $oldControlMode){try{[Console]::TreatControlCAsInput=$oldControlMode}catch{}} >>"%PSEL%"
-echo } >>"%PSEL%"
-echo exit 0 >>"%PSEL%"
-set "LIVE_RES=%CTL%\live_escolha_%RANDOM%.txt"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PSEL%" -Segundos 15 -Resultado "%LIVE_RES%"
-set "LIVE_OP=4"
-set "LIVE_RESPOSTA=A_AUTOMATICO"
-if exist "%LIVE_RES%" set /p "LIVE_RESPOSTA="<"%LIVE_RES%"
-if /i "%LIVE_RESPOSTA%"=="S" set "LIVE_OP=1"
-if /i "%LIVE_RESPOSTA%"=="F" set "LIVE_OP=2"
-if /i "%LIVE_RESPOSTA%"=="N" set "LIVE_OP=3"
-if /i "%LIVE_RESPOSTA%"=="A_AUTOMATICO" set "LIVE_RELATO=NAO ACOMPANHADO - sem resposta do tecnico em 15 segundos; opcao A automatica."
-if defined LIVE_ESC echo %LIVE_ESC%[0m
-color 0A
-if "%LIVE_OP%"=="1" set "LIVE_RELATO=TRAVOU DURANTE o teste de velocidade - relato do tecnico; causa nao determinada."
-if "%LIVE_OP%"=="2" set "LIVE_RELATO=TRAVOU FORA do teste de velocidade - relato do tecnico sobre video/live; causa nao determinada."
-if "%LIVE_OP%"=="3" set "LIVE_RELATO=ACOMPANHADA SEM TRAVAR neste atendimento - relato do tecnico."
-:LIVE_REGISTRAR
->"%LAUDO%\OBSERVACAO_LIVE.txt" echo %LIVE_RELATO%
-
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
-if errorlevel 1 (
-  echo [ERRO] Falha ao gerar o laudo. Os logs brutos foram preservados.
-  pause
-  exit /b 1
-)
-if not exist "%LAUDO%\VEREDITO.txt" (
-  echo [ERRO] VEREDITO.txt nao foi gerado. Confira os registros em %LAUDO%
-  pause
-  exit /b 1
-)
-
-if /i "%TG_ENVIAR%"=="sim" powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PTG%" "%LAUDO%" "%TECNICO%" "%CLIENTE%" "%OS_ID%"
+:TELEGRAM_CONCLUIDO
 
 :: TELA FINAL
 echo.
@@ -4744,10 +4744,11 @@ echo %~1| findstr /r /c:"^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >
 goto :eof
 
 :LOCALIZAR
-setlocal disabledelayedexpansion
+setlocal DisableDelayedExpansion
 set "_ACHOU="
 for /f "delims=" %%f in ('dir /b /a-d "%AQUI%%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%AQUI%%%f"
-if not defined _ACHOU for /f "delims=" %%f in ('dir /s /b /a-d "%USERPROFILE%\%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%%f"
-if not defined _ACHOU for /f "delims=" %%f in ('dir /s /b /a-d "%SystemDrive%\%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%%f"
+if not defined _ACHOU for /f "delims=" %%f in ('where "%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%%f"
+if not defined _ACHOU for /f "delims=" %%f in ('dir /b /a-d "%USERPROFILE%\Downloads\%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%USERPROFILE%\Downloads\%%f"
+if not defined _ACHOU for /f "delims=" %%f in ('dir /b /a-d "%USERPROFILE%\Desktop\%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%USERPROFILE%\Desktop\%%f"
 endlocal & set "%~1=%_ACHOU%"
 goto :eof
