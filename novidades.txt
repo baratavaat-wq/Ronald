@@ -1,4 +1,4 @@
-LAUDO DE REDE v1074
-- Removida a funcao de abrir filme durante os testes.
-- O aviso inicial mostra a contagem para os testes de rede.
-- A pergunta sobre video ou live observados fica disponivel apos Speedtest ou Fast.
+LAUDO DE REDE v1075
+- Os monitores abrem sem esperar a preparacao do laudo e do Telegram.
+- Os avisos da preparacao deixam a coleta seguir sem pausa adicional.
+- A busca de Speedtest e Fast usa a pasta do BAT, PATH, Downloads e Area de Trabalho.
