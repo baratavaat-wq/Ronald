@@ -1,4 +1,4 @@
-LAUDO DE REDE v1083
-- Corrige a localizacao do Speedtest em subpastas como "testes de velocidade\speed teste".
-- A busca continua limitada as pastas comuns, com ate dois niveis de subpastas de teste. Arquivos ZIP nao sao selecionados como executaveis.
-- O resumo informa se o teste de velocidade foi desativado, se o EXE nao foi encontrado ou se faltou o log.
+LAUDO DE REDE v1084
+- Duracao do teste obrigatoria. Enter em branco repete a pergunta.
+- Tempo recomendado de 30 minutos. Qualquer outro valor exige confirmar com S.
+- A duracao fora da recomendacao fica registrada no laudo.
