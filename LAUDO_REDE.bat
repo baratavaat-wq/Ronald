@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1083"
+set "VER=1084"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -229,7 +229,7 @@ set "SRV_CONEX_UP=4"
 ::   MUDA  : IPV6_NO_VEREDITO = 0 nao reprova / 1 reprova
 ::   MUDA  : TESTAR_IPV6 = auto / sim / nao
 :: +=======================================================+
-set "MINUTOS_PADRAO=15"
+set "MINUTOS_RECOMENDADOS=30"
 set "VOZ_MODO=nao"
 set "PVOZ="
 set "IPV6_NO_VEREDITO=0"
@@ -459,20 +459,53 @@ powershell -NoProfile -Command "$d=[Environment]::GetFolderPath('Desktop'); $lnk
 :: =========================================================
 :: PERGUNTA 3 - MINUTOS
 :: =========================================================
+:PERGUNTA_MINUTOS
 set "MINUTOS="
+set "DURACAO_FORA_PADRAO="
 echo.
 echo  ----------------------------------------------------
-echo  TEMPO DE TESTE
-echo  Quantos MINUTOS o teste vai rodar?
-echo  Exemplos: 1 / 5 / 10 / 15 / 30 / 60
-echo  ENTER em branco = %MINUTOS_PADRAO% minutos.
+echo  TEMPO DE TESTE - PREENCHIMENTO OBRIGATORIO
+echo  Tempo recomendado: %MINUTOS_RECOMENDADOS% minutos.
+echo  Digite %MINUTOS_RECOMENDADOS% para usar o tempo recomendado.
 echo.
-set /p "MINUTOS=  Minutos (ENTER = %MINUTOS_PADRAO%): "
-if defined MINUTOS set "MINUTOS=%MINUTOS:"=%"
-if not defined MINUTOS set "MINUTOS=%MINUTOS_PADRAO%"
-echo %MINUTOS%| findstr /r "^[1-9][0-9]*$" >nul || set "MINUTOS=%MINUTOS_PADRAO%"
-set /a "QTD_PING=%MINUTOS%*60"
-if %QTD_PING% LSS 60 set /a "QTD_PING=60"
+set /p "MINUTOS=  Quantos minutos? "
+if not defined MINUTOS goto DURACAO_INVALIDA
+set "RESTO_MINUTOS=!MINUTOS!"
+for %%D in (0 1 2 3 4 5 6 7 8 9) do if defined RESTO_MINUTOS set "RESTO_MINUTOS=!RESTO_MINUTOS:%%D=!"
+if defined RESTO_MINUTOS goto DURACAO_INVALIDA
+
+:NORMALIZAR_MINUTOS
+if not "!MINUTOS:~0,1!"=="0" goto COMPARAR_MINUTOS
+set "MINUTOS=!MINUTOS:~1!"
+if not defined MINUTOS goto DURACAO_INVALIDA
+goto NORMALIZAR_MINUTOS
+
+:COMPARAR_MINUTOS
+:: Limita a multiplicacao em segundos ao inteiro de 32 bits do SET /A.
+if not "!MINUTOS:~8!"=="" goto DURACAO_INVALIDA
+if !MINUTOS! GTR 35791394 goto DURACAO_INVALIDA
+if !MINUTOS! EQU %MINUTOS_RECOMENDADOS% goto DURACAO_CONFIRMADA
+
+color 0E
+echo.
+echo  ----------------------------------------------------
+echo  ATENCAO - TEMPO FORA DO RECOMENDADO
+echo  Voce escolheu !MINUTOS! minutos. O recomendado e %MINUTOS_RECOMENDADOS%.
+echo  Use S somente se quiser continuar por sua conta e risco.
+echo.
+set "CONFIRMA_TEMPO="
+set /p "CONFIRMA_TEMPO=  Continuar com !MINUTOS! minutos? [S/N, ENTER = voltar]: "
+color 0A
+if /i not "!CONFIRMA_TEMPO!"=="S" goto PERGUNTA_MINUTOS
+set "DURACAO_FORA_PADRAO=S"
+goto DURACAO_CONFIRMADA
+
+:DURACAO_INVALIDA
+echo   [AVISO] Digite um numero inteiro valido maior que zero.
+goto PERGUNTA_MINUTOS
+
+:DURACAO_CONFIRMADA
+set /a "QTD_PING=MINUTOS*60" >nul
 
 :: =========================================================
 :: PERGUNTA 4 e 5 - ALVOS EXTRA
@@ -774,6 +807,7 @@ if defined APARELHO echo APARELHO       : !APARELHO!
 echo PERFIL DE PERDA: GLOBAL
 echo CONEXAO        : %CONEXAO%
 echo DURACAO        : %MINUTOS% minutos ^(planejado^)
+if defined DURACAO_FORA_PADRAO echo TEMPO FORA DO RECOMENDADO confirmado pelo tecnico.
 echo COMPUTADOR     : %COMPUTERNAME%
 echo USUARIO        : %USERNAME%
 echo ROTEADOR       : %GW_TXT%
@@ -2325,6 +2359,7 @@ echo if ($satur -eq 'S' -and $conx -match '2\.4') { $rel += "OBS BANDA .......: 
 echo $rel += "COMPUTADOR ......: " + $env:COMPUTERNAME >>"%PFALA%"
 echo $rel += "USUARIO .........: " + $env:USERNAME >>"%PFALA%"
 echo $rel += "DURACAO DO TESTE : " + $mins >>"%PFALA%"
+echo if ($env:DURACAO_FORA_PADRAO -eq 'S') { $rel += ("DURACAO PLANEJADA: {0} min, confirmada pelo tecnico. Recomendado: {1} min." -f $env:MINUTOS,$env:MINUTOS_RECOMENDADOS) } >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
 echo $rel += $carga >>"%PFALA%"
