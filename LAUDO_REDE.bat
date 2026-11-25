@@ -23,7 +23,7 @@ set "AQUI=%~dp0"
 ::   Troque so este numero. Tudo abaixo se ajusta sozinho:
 ::   titulo, cabecalhos, telas e a checagem do GitHub.
 :: +=======================================================+
-set "VER=1080"
+set "VER=1083"
 set "VERSAO_LOCAL=%VER%"
 set "RAW_BASE=https://raw.githubusercontent.com/baratavaat-wq/Ronald/main/"
 set "URL_VERSAO=%RAW_BASE%versao.txt"
@@ -106,7 +106,7 @@ set "LIMITE_EXTRA_IPV6=120"
 
 :: +=======================================================+
 ::   ABA 7  -  SPEEDTEST                   janela CIANO
-::   MUDA  : INTERVALO = roda a cada X segundos
+::   MUDA  : INTERVALO = descanso apos o fim da rodada
 ::   MUDA  : NOME  = nome do .exe (aceita * curinga)
 ::   MUDA  : ARGS  = argumentos (vazio = nenhum)
 :: +=======================================================+
@@ -116,7 +116,7 @@ set "SPEEDARGS=--accept-license --accept-gdpr"
 
 :: +=======================================================+
 ::   ABA 8  -  FAST                        janela ROSA
-::   MUDA  : INTERVALO = roda a cada X segundos
+::   MUDA  : INTERVALO = descanso apos o fim da rodada
 ::   MUDA  : NOME  = nome do .exe (aceita * curinga)
 ::   MUDA  : ARGS  = vazio = nenhum / -u = mede upload
 :: +=======================================================+
@@ -231,6 +231,7 @@ set "SRV_CONEX_UP=4"
 :: +=======================================================+
 set "MINUTOS_PADRAO=15"
 set "VOZ_MODO=nao"
+set "PVOZ="
 set "IPV6_NO_VEREDITO=0"
 set "TESTAR_IPV6=auto"
 
@@ -296,17 +297,19 @@ echo param($alvo) >>"%PCHK%"
 echo $als = @($alvo, "2001:4860:4860::8888") >>"%PCHK%"
 echo foreach ($a in $als) { >>"%PCHK%"
 echo $r = ping -6 -n 2 -w 1500 $a >>"%PCHK%"
-echo if ($r -match "=\s*\d+\s*ms") { Write-Output $a; break } >>"%PCHK%"
+echo if ($r -match "[=<]\s*\d+\s*ms") { Write-Output $a; break } >>"%PCHK%"
 echo } >>"%PCHK%"
 
 set "TEM_IPV6=0"
 set "IPV6_USADO="
+set "IPV6_CONFIRMADO=0"
 cls
 echo Verificando se a rede tem IPv6...
 if /i not "%TESTAR_IPV6%"=="nao" (
   for /f "delims=" %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PCHK%" "%ALVO_IPV6%"') do if not defined IPV6_USADO set "IPV6_USADO=%%i"
 )
 if defined IPV6_USADO set "TEM_IPV6=1"
+if defined IPV6_USADO set "IPV6_CONFIRMADO=1"
 if /i "%TESTAR_IPV6%"=="sim" set "TEM_IPV6=1"
 if /i "%TESTAR_IPV6%"=="sim" if not defined IPV6_USADO set "IPV6_USADO=%ALVO_IPV6%"
 
@@ -314,19 +317,41 @@ if /i "%TESTAR_IPV6%"=="sim" if not defined IPV6_USADO set "IPV6_USADO=%ALVO_IPV
 :ESCOLHER_VOZ
 set "VOZ_ESCOLHA="
 echo.
-echo  VOZ NO FINAL DO TESTE
+echo  VOZ NO FINAL DO TESTE - as opcoes 1 e 2 testam o audio agora
 echo    1 - Ler o resumo em voz alta
 echo    2 - Ler os resultados por destino
 echo    3 - Sem voz
-set /p "VOZ_ESCOLHA=  Escolha 1, 2 ou 3 [ENTER = sem voz]: "
+echo    4 - Testar o audio agora e voltar ao menu
+set /p "VOZ_ESCOLHA=  Escolha 1, 2, 3 ou 4 [ENTER = sem voz]: "
 set "VOZ_MODO=nao"
 if "!VOZ_ESCOLHA!"=="1" set "VOZ_MODO=curto"
 if "!VOZ_ESCOLHA!"=="2" set "VOZ_MODO=longo"
 if "!VOZ_ESCOLHA!"=="" goto PERGUNTA_TECNICO
 if "!VOZ_ESCOLHA!"=="3" goto PERGUNTA_TECNICO
-if not "!VOZ_MODO!"=="nao" goto PERGUNTA_TECNICO
-echo   Escolha uma opcao de 1 a 3.
+if "!VOZ_ESCOLHA!"=="4" goto TESTAR_VOZ
+if not "!VOZ_MODO!"=="nao" goto VOZ_ESCOLHIDA
+echo   Escolha uma opcao de 1 a 4.
 goto ESCOLHER_VOZ
+
+:TESTAR_VOZ
+call :TESTE_DE_AUDIO
+goto ESCOLHER_VOZ
+
+:VOZ_ESCOLHIDA
+call :TESTE_DE_AUDIO
+goto PERGUNTA_TECNICO
+
+:TESTE_DE_AUDIO
+echo   Testando a voz deste computador...
+call :PREPARAR_VOZ
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PVOZ%" -Texto "Teste de voz do laudo de rede." -Teste
+if errorlevel 1 (
+  echo   [AVISO] A leitura de teste falhou. Confira a saida de som e se o Windows permite a voz.
+) else (
+  echo   Se nao ouviu a frase, confira a saida e o volume no Windows.
+)
+echo   O teste de rede e o laudo em texto seguem normalmente.
+goto :eof
 
 :: =========================================================
 :: PERGUNTA 1 - NOME DO TECNICO (obrigatorio, so 1o nome)
@@ -382,6 +407,11 @@ set /p "OS_ID=  ID da O.S.: "
 if not defined OS_ID goto PERGUNTA_OS
 set "OS_ID=%OS_ID:"=%"
 if not defined OS_ID goto PERGUNTA_OS
+
+:: Nome livre informado pelo tecnico, apenas para identificar o aparelho.
+set "APARELHO="
+echo.
+set /p "APARELHO=  Aparelho testado (ex.: FiberHome AN5506-01-A) [ENTER = pular]: "
 
 :: nome do cliente limpo, para usar no nome da pasta
 set "PSAN=%TEMP%\sanit.ps1"
@@ -513,10 +543,10 @@ goto FIM_PERGUNTAS
 
 :SEM_PERGUNTA_IPV6
 echo  ----------------------------------------------------
-echo  ABA 6 - PING EXTRA IPv6: a rede NAO tem IPv6, entao nem pergunto.
+echo  ABA 6 - PING EXTRA IPv6: IPv6 nao confirmado na checagem inicial.
 
 :FIM_PERGUNTAS
-if "%TEM_IPV6%"=="1" (set "TXT_IPV6=SIM - alvo: %IPV6_USADO%") else (set "TXT_IPV6=NAO - abas IPv6 nao serao abertas")
+if "%TEM_IPV6%"=="1" (set "TXT_IPV6=SIM - alvo: %IPV6_USADO%") else (set "TXT_IPV6=NAO CONFIRMADO - abas IPv6 nao serao abertas")
 if defined ALVO_EXTRA (set "TXT_EXTRA=%ALVO_EXTRA%") else (set "TXT_EXTRA=nao usado")
 if defined ALVO_EXTRA_IPV6 (set "TXT_EXTRA6=%ALVO_EXTRA_IPV6%") else (set "TXT_EXTRA6=nao usado")
 
@@ -740,6 +770,7 @@ echo INICIO         : %date% %time%
 echo TECNICO        : %TECNICO%
 echo CLIENTE        : %CLIENTE%
 echo O.S.           : %OS_ID%
+if defined APARELHO echo APARELHO       : !APARELHO!
 echo PERFIL DE PERDA: GLOBAL
 echo CONEXAO        : %CONEXAO%
 echo DURACAO        : %MINUTOS% minutos ^(planejado^)
@@ -759,16 +790,10 @@ echo COMO LER A PERDA DE PACOTES ^(para o tecnico^):
 echo - Toda perda registrada CONTA na nota do laudo.
 echo - Rajada ^(2 ou mais perdas seguidas^) piora ainda mais a
 echo   classificacao do que perdas espalhadas.
-echo - A UNICA perda que NAO reprova e a do proprio roteador
-echo   quando ele so "cansa" de responder o ping: se o gateway
-echo   perde MUITO, mas os destinos externos ^(cujo trafego
-echo   passa POR ele^) perdem pouco ou nada, entao o problema
-echo   foi so o roteador respondendo ping devagar ^(limite de
-echo   ICMP^), e NAO perda de trafego real. So nesse caso a
-echo   perda do gateway e relevada.
-echo - Em qualquer outra situacao, a perda conta contra o
-echo   resultado. Perda que aparece TAMBEM nos destinos
-echo   externos e perda de verdade, nunca "limite de ICMP".
+echo - Se o gateway perde mais que os alvos externos, pode haver
+echo   limitacao de respostas ICMP. Compare varios destinos e
+echo   repita por cabo para localizar a origem da perda.
+echo - Erro de DNS do alvo fica registrado separadamente.
 echo ---------------------------------------------------------
 echo.
 ) > "%LAUDO%\RESUMO.txt"
@@ -806,6 +831,7 @@ goto CHECA_INTERNET
 :: verificacao do SERVIDOR removida a pedido - editar o IP no topo do script
 
 :CHECA_ALVO_IPV6
+if "%IPV6_CONFIRMADO%"=="1" goto FIM_CHECA_ALVOS
 if not "%TEM_IPV6%"=="1" goto FIM_CHECA_ALVOS
 ping -6 -n 2 -w 1500 "%ALVO_IPV6%" >nul 2>&1
 if not errorlevel 1 goto FIM_CHECA_ALVOS
@@ -820,14 +846,15 @@ set /p "NOVO_ALVO=  Novo alvo IPv6 (ENTER = manter assim): "
 color 0A
 if not defined NOVO_ALVO goto FIM_CHECA_ALVOS
 set "ALVO_IPV6=%NOVO_ALVO:"=%"
+set "IPV6_USADO=%ALVO_IPV6%"
 goto CHECA_ALVO_IPV6
 :FIM_CHECA_ALVOS
 
 echo  TESTES DE VELOCIDADE (opcionais)
 echo.
 echo  Recomendado escolher SOMENTE UM. O SPEEDTEST (Ookla) e o
-echo  mais indicado. Rodar os dois juntos faz um roubar banda do
-echo  outro e atrapalha a analise.
+echo  mais indicado. Quando os dois forem escolhidos, as
+echo  rodadas serao executadas uma de cada vez.
 echo.
 set "USAR_SPEED=N"
 choice /c SN /n /m "  Rodar SPEEDTEST (Ookla)? [S/N]: "
@@ -837,17 +864,15 @@ goto FIM_INT_SPEED
 
 :INT_SPEED
 echo.
-echo   Intervalo entre as rodadas do SPEEDTEST, em segundos.
+echo   Tempo do fim de um SPEEDTEST ate o inicio do proximo.
 echo   Padrao atual: %INTERVALO_SPEED%s.
-echo   Abaixo de 185s costuma funcionar, mas a Ookla pode
-echo   bloquear por excesso de testes seguidos.
+echo   Um intervalo maior da mais amostras de ping entre as rodadas.
 set "RESP_INT="
 set /p "RESP_INT=  Intervalo em segundos (ENTER = %INTERVALO_SPEED%): "
 if not defined RESP_INT goto FIM_INT_SPEED
 echo %RESP_INT%| findstr /r "^[0-9][0-9]*$" >nul || goto INT_SPEED
 set "INTERVALO_SPEED=%RESP_INT%"
 if %INTERVALO_SPEED% LSS 5 set "INTERVALO_SPEED=5"
-if %INTERVALO_SPEED% LSS 185 echo   [!] Abaixo de 185s: risco de bloqueio pela Ookla.
 echo   Intervalo do SPEEDTEST: %INTERVALO_SPEED%s
 :FIM_INT_SPEED
 
@@ -859,7 +884,7 @@ goto FIM_INT_FAST
 
 :INT_FAST
 echo.
-echo   Intervalo entre as rodadas do FAST, em segundos.
+echo   Tempo do fim de um FAST ate o inicio do proximo.
 echo   Padrao atual: %INTERVALO_FAST%s.
 set "RESP_INTF="
 set /p "RESP_INTF=  Intervalo em segundos (ENTER = %INTERVALO_FAST%): "
@@ -876,10 +901,8 @@ if /i not "%USAR_FAST%"=="S" goto FIM_DOIS
 color 0E
 echo.
 echo   -----------------------------------------------------
-echo   ATENCAO: SPEEDTEST e FAST marcados JUNTOS.
-echo   Os dois disputam a mesma banda ao mesmo tempo, entao
-echo   as duas medicoes de velocidade saem menores que o real
-echo   e a analise fica menos confiavel.
+echo   ATENCAO: SPEEDTEST e FAST marcados.
+echo   As rodadas vao se revezar, o que pode mudar os horarios.
 echo   -----------------------------------------------------
 choice /c SN /n /m "  Deixar so o SPEEDTEST (recomendado)? [S/N]: "
 if errorlevel 2 goto MANTEM_DOIS
@@ -887,7 +910,7 @@ set "USAR_FAST=N"
 echo   FAST desligado. Seguindo so com o SPEEDTEST.
 goto COR_DOIS
 :MANTEM_DOIS
-echo   Ok, mantendo os dois por sua conta.
+echo   Mantendo os dois, com uma rodada de cada vez.
 :COR_DOIS
 color 0A
 :FIM_DOIS
@@ -1197,8 +1220,8 @@ if /i "%USAR_FAST%"=="S" set "SRV_AVISO=1"
 if not defined SRV_AVISO goto FIM_ABA9
 color 0E
 echo.
-echo   [ATENCAO] ABA 9 junto com Speedtest/Fast: os testes disputam
-echo   a mesma banda e todas as medicoes saem menores que o real.
+echo   [ATENCAO] ABA 9 junto com Speedtest/Fast: o servidor proprio
+echo   tambem gera trafego e pode afetar a comparacao de latencia.
 color 0A
 
 :FIM_ABA9
@@ -1206,14 +1229,20 @@ color 0A
 :: LOCALIZA OS EXECUTAVEIS (so os que o tecnico quer usar)
 set "SPEEDEXE="
 set "FASTEXE="
+set "SPEED_MOTIVO=desativado na escolha do tecnico"
+set "FAST_MOTIVO=desativado na escolha do tecnico"
 if /i not "%USAR_SPEED%"=="S" goto PULA_SPEED
 echo Localizando o Speedtest...
+set "SPEED_MOTIVO=executavel nao localizado"
 call :LOCALIZAR SPEEDEXE "%NOME_SPEED%"
+if defined SPEEDEXE set "SPEED_MOTIVO=executavel localizado, mas processo sem log"
 if defined SPEEDEXE (echo   ^> speedtest: %SPEEDEXE%) else (echo   [AVISO] Speedtest nao localizado. Coloque o executavel junto do BAT para usa-lo.)
 :PULA_SPEED
 if /i not "%USAR_FAST%"=="S" goto PULA_FAST
 echo Localizando o Fast...
+set "FAST_MOTIVO=executavel nao localizado"
 call :LOCALIZAR FASTEXE "%NOME_FAST%"
+if defined FASTEXE set "FAST_MOTIVO=executavel localizado, mas processo sem log"
 if defined FASTEXE (echo   ^> fast     : %FASTEXE%) else (echo   [AVISO] Fast nao localizado. Coloque o executavel junto do BAT para usa-lo.)
 :PULA_FAST
 if /i "%USAR_SPEED%"=="N" echo   SPEEDTEST: nao sera executado (escolha do tecnico).
@@ -1231,10 +1260,8 @@ if /i "%SATURA%"=="S" (
   echo   AVISO SOBRE O TESTE DE VELOCIDADE
   echo   Conexao detectada: %CONEXAO%
   echo.
-  echo   O speedtest/fast roda em LOOP durante toda a coleta e
-  echo   satura o link de proposito. Com isso o ping SOBE em
-  echo   qualquer conexao ^(cabo, 5 GHz ou 2.4 GHz^) - no 2.4 GHz
-  echo   sobe mais ainda.
+  echo   Os pings comecam primeiro para registrar uma referencia.
+  echo   Durante a rodada o teste usa banda e pode elevar o ping.
   echo.
   echo   [SAT] indica teste ativo; NAO descarta falha sob carga.
   echo   Ping e perda sob carga terao uma analise separada.
@@ -1464,7 +1491,7 @@ echo } >>"%PWAIT%"
 if /i not "%SATURA%"=="S" goto INICIAR_MONITORES
 set "PVEL=%TEMP%\lr_velocidade_%STAMP%_%RANDOM%.ps1"
 del "%PVEL%" >nul 2>&1
-echo param([string]$ControlScript,[string]$Exe,[string]$ArgumentLine,[string]$Pasta,[string]$Tipo,[int]$Intervalo) >>"%PVEL%"
+echo param([string]$ControlScript,[string]$Exe,[string]$ArgumentLine,[string]$Pasta,[string]$Tipo,[int]$Intervalo,[int]$EsperaInicial=0) >>"%PVEL%"
 echo $ErrorActionPreference='Stop' >>"%PVEL%"
 echo . $ControlScript >>"%PVEL%"
 echo Initialize-LaudoControl (Join-Path $Pasta '_controle') >>"%PVEL%"
@@ -1472,26 +1499,49 @@ echo Register-LaudoWorker >>"%PVEL%"
 echo $log=Join-Path $Pasta $(if($Tipo -eq 'speed'){'speedlog.txt'}else{'fastlog.txt'}) >>"%PVEL%"
 echo $flag=Join-Path $Pasta ('_sat_'+$Tipo+'.flag') >>"%PVEL%"
 echo $name=if($Tipo -eq 'speed'){'SPEEDTEST'}else{'FAST'} >>"%PVEL%"
+echo $lockPath=Join-Path $script:LaudoControlFolder 'velocidade.lock' >>"%PVEL%"
+echo function Wait-LaudoSpeed([int]$seconds) { >>"%PVEL%"
+echo     $watch=[Diagnostics.Stopwatch]::StartNew() >>"%PVEL%"
+echo     while($watch.Elapsed.TotalSeconds -lt $seconds -and -not (Test-LaudoStop)){Start-Sleep -Milliseconds 150} >>"%PVEL%"
+echo } >>"%PVEL%"
+echo function Lock-LaudoSpeed { >>"%PVEL%"
+echo     while(-not (Test-LaudoStop)){ >>"%PVEL%"
+echo         try { return [IO.File]::Open($lockPath,'OpenOrCreate','ReadWrite','None') } >>"%PVEL%"
+echo         catch [IO.IOException] { >>"%PVEL%"
+echo             if (($_.Exception.GetBaseException().HResult -band 65535) -ne 32) { throw } >>"%PVEL%"
+echo             Start-Sleep -Milliseconds 150 >>"%PVEL%"
+echo         } >>"%PVEL%"
+echo     } >>"%PVEL%"
+echo } >>"%PVEL%"
 echo $encoding=New-Object Text.UTF8Encoding($false) >>"%PVEL%"
 echo $stream=New-Object IO.FileStream($log,[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::ReadWrite) >>"%PVEL%"
 echo $writer=New-Object IO.StreamWriter($stream,$encoding) >>"%PVEL%"
 echo $writer.AutoFlush=$true >>"%PVEL%"
 echo try { >>"%PVEL%"
+echo     if($EsperaInicial -gt 0){ >>"%PVEL%"
+echo         Write-Host ('Pings em coleta. Primeira rodada em cerca de '+$EsperaInicial+' s.') >>"%PVEL%"
+echo         Wait-LaudoSpeed $EsperaInicial >>"%PVEL%"
+echo     } >>"%PVEL%"
 echo     while(-not (Test-LaudoStop)){ >>"%PVEL%"
-echo         $writer.WriteLine('-----------------------------') >>"%PVEL%"
-echo         $writer.WriteLine($name+' EM '+(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) >>"%PVEL%"
-echo         [IO.File]::WriteAllText($flag,'ativo') >>"%PVEL%"
+echo         $lease=Lock-LaudoSpeed >>"%PVEL%"
+echo         if($null -eq $lease){break} >>"%PVEL%"
 echo         try { >>"%PVEL%"
+echo             if(Test-LaudoStop){break} >>"%PVEL%"
+echo             $writer.WriteLine('-----------------------------') >>"%PVEL%"
+echo             $writer.WriteLine($name+' EM '+(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) >>"%PVEL%"
+echo             [IO.File]::WriteAllText($flag,'ativo') >>"%PVEL%"
 echo             $capture={param($line) $writer.WriteLine($line);Write-Host $line} >>"%PVEL%"
 echo             Invoke-LaudoNative -Exe $Exe -Arguments $ArgumentLine -OnOut $capture -OnError $capture >>"%PVEL%"
 echo             if($script:LaudoNativeInterrupted){$writer.WriteLine('[RODADA INTERROMPIDA]')} >>"%PVEL%"
 echo             elseif($script:LaudoNativeExitCode -eq 0){$writer.WriteLine('[RODADA CONCLUIDA codigo=0]')} >>"%PVEL%"
 echo             else {$writer.WriteLine('[RODADA COM ERRO codigo='+$script:LaudoNativeExitCode+']')} >>"%PVEL%"
 echo         } catch {$writer.WriteLine('[RODADA COM ERRO] '+$_.Exception.Message)} >>"%PVEL%"
-echo         finally {try{[IO.File]::Delete($flag)}catch{};$writer.Flush()} >>"%PVEL%"
-echo         if(Test-LaudoStop){break} >>"%PVEL%"
-echo         $next=(Get-Date).AddSeconds([math]::Max(5,$Intervalo)) >>"%PVEL%"
-echo         while((Get-Date) -lt $next -and -not (Test-LaudoStop)){Start-Sleep -Milliseconds 150} >>"%PVEL%"
+echo         finally { >>"%PVEL%"
+echo             try{[IO.File]::Delete($flag)}catch{} >>"%PVEL%"
+echo             $lease.Dispose() >>"%PVEL%"
+echo             $writer.Flush() >>"%PVEL%"
+echo         } >>"%PVEL%"
+echo         Wait-LaudoSpeed ([math]::Max(5,$Intervalo)) >>"%PVEL%"
 echo     } >>"%PVEL%"
 echo } finally { >>"%PVEL%"
 echo     $writer.Dispose() >>"%PVEL%"
@@ -1501,6 +1551,31 @@ echo } >>"%PVEL%"
 echo exit 0 >>"%PVEL%"
 :INICIAR_MONITORES
 break>"%CTL%\heartbeat.flag" 2>nul
+:: ABAS 1 a 6 - PINGS AO VIVO COM BIP
+echo Abrindo as abas de ping com BIP...
+
+start "LAUDO_PING_MODEM"    cmd /d /c color 0A ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%GW%" "%LAUDO%\ping_modem.txt" %LIMITE_ROTEADOR% %QTD_PING% ^& exit 0
+start "LAUDO_PING_INTERNET" cmd /d /c color 0E ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_INTERNET%" "%LAUDO%\ping_internet.txt" %LIMITE_INTERNET% %QTD_PING% 4 ^& exit 0
+start "LAUDO_PING_SERVIDOR" cmd /d /c color 0B ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%SERVIDOR%" "%LAUDO%\ping_servidor.txt" %LIMITE_SERVIDOR% %QTD_PING% ^& exit 0
+
+if defined ALVO_EXTRA (
+  start "LAUDO_PING_EXTRA" cmd /d /c color 0C ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA%" "%LAUDO%\ping_extra.txt" %LIMITE_EXTRA% %QTD_PING% 4 ^& exit 0
+)
+
+if "%TEM_IPV6%"=="1" (
+  start "LAUDO_PING_IPV6" cmd /d /c color 0F ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%IPV6_USADO%" "%LAUDO%\ping_ipv6.txt" %LIMITE_IPV6% %QTD_PING% 6 ^& exit 0
+) else (
+  echo   [INFO] IPv6 nao confirmado - abas 5 e 6 nao foram abertas.
+)
+
+if defined ALVO_EXTRA_IPV6 if "%TEM_IPV6%"=="1" (
+  start "LAUDO_PING_EXTRA6" cmd /d /c color 09 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA_IPV6%" "%LAUDO%\ping_extra6.txt" %LIMITE_EXTRA_IPV6% %QTD_PING% 6 ^& exit 0
+)
+echo.
+
+set "ESPERA_VEL=30"
+if defined QTD_PING if !QTD_PING! LSS 120 set "ESPERA_VEL=15"
+if "%SATURA%"=="S" echo   Pings em coleta. Primeira rodada de velocidade apos %ESPERA_VEL%s.
 if defined SPEEDEXE (
   set "speed_BAT=%TEMP%\speed_loop_%STAMP%_%RANDOM%.bat"
   > "!speed_BAT!" (
@@ -1508,7 +1583,7 @@ if defined SPEEDEXE (
     echo chcp 65001 ^>nul
     echo title LAUDO_SPEED
     echo color 0B
-    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%SPEEDEXE%" -ArgumentLine " %SPEEDARGS%" -Pasta "%LAUDO%" -Tipo speed -Intervalo %INTERVALO_SPEED%
+    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%SPEEDEXE%" -ArgumentLine " %SPEEDARGS%" -Pasta "%LAUDO%" -Tipo speed -Intervalo %INTERVALO_SPEED% -EsperaInicial %ESPERA_VEL%
     echo exit /b 0
   )
   start "LAUDO_SPEED" cmd /d /c call "!speed_BAT!"
@@ -1520,7 +1595,7 @@ if defined FASTEXE (
     echo chcp 65001 ^>nul
     echo title LAUDO_FAST
     echo color 0D
-    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%FASTEXE%" -ArgumentLine " %FASTARGS%" -Pasta "%LAUDO%" -Tipo fast -Intervalo %INTERVALO_FAST%
+    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PVEL%" -ControlScript "%PCTRL%" -Exe "%FASTEXE%" -ArgumentLine " %FASTARGS%" -Pasta "%LAUDO%" -Tipo fast -Intervalo %INTERVALO_FAST% -EsperaInicial %ESPERA_VEL%
     echo exit /b 0
   )
   start "LAUDO_FAST" cmd /d /c call "!fast_BAT!"
@@ -1832,28 +1907,6 @@ goto ABA9_SEM_JANELA
 start "LAUDO_SERVIDOR" cmd /d /c color 03 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PSRV%" "%SRV_URL%" "%SRV_LOGIN%" "%SRV_SENHA%" "%SRV_MBPS%" "%SRV_MBPS_UP%" "%SRV_DIRECAO%" "%SRV_LOG1%" "%SRV_CONEX_DL%" "%SRV_CONEX_UP%" "%SRV_BLOCO%" ^& exit 0
 :ABA9_SEM_JANELA
 
-:: ABAS 1 a 6 - PINGS AO VIVO COM BIP
-echo Abrindo as abas de ping com BIP...
-
-start "LAUDO_PING_MODEM"    cmd /d /c color 0A ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%GW%" "%LAUDO%\ping_modem.txt" %LIMITE_ROTEADOR% %QTD_PING% ^& exit 0
-start "LAUDO_PING_INTERNET" cmd /d /c color 0E ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_INTERNET%" "%LAUDO%\ping_internet.txt" %LIMITE_INTERNET% %QTD_PING% 4 ^& exit 0
-start "LAUDO_PING_SERVIDOR" cmd /d /c color 0B ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%SERVIDOR%" "%LAUDO%\ping_servidor.txt" %LIMITE_SERVIDOR% %QTD_PING% ^& exit 0
-
-if defined ALVO_EXTRA (
-  start "LAUDO_PING_EXTRA" cmd /d /c color 0C ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA%" "%LAUDO%\ping_extra.txt" %LIMITE_EXTRA% %QTD_PING% 4 ^& exit 0
-)
-
-if "%TEM_IPV6%"=="1" (
-  start "LAUDO_PING_IPV6" cmd /d /c color 0F ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%IPV6_USADO%" "%LAUDO%\ping_ipv6.txt" %LIMITE_IPV6% %QTD_PING% 6 ^& exit 0
-) else (
-  echo   [INFO] Rede sem IPv6 - abas 5 e 6 NAO foram abertas.
-)
-
-if defined ALVO_EXTRA_IPV6 if "%TEM_IPV6%"=="1" (
-  start "LAUDO_PING_EXTRA6" cmd /d /c color 09 ^& powershell -NoProfile -ExecutionPolicy Bypass -File "%PBEEP%" "%ALVO_EXTRA_IPV6%" "%LAUDO%\ping_extra6.txt" %LIMITE_EXTRA_IPV6% %QTD_PING% 6 ^& exit 0
-)
-echo.
-
 :: ESPERA (F encerra na hora e gera o laudo; Ctrl+C aborta sem laudo)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PWAIT%" %QTD_PING% "%GW%" "%ALVO_INTERNET%" "%MINUTOS%" "%TECNICO%" "%CONEXAO%" "%CTL%"
 
@@ -1910,13 +1963,18 @@ echo function Display($v,[string]$unit){if($null -eq $v){'nao medido'}else{([dou
 echo $rows=New-Object Collections.ArrayList >>"%PMET%"
 echo $summary=New-Object Collections.ArrayList >>"%PMET%"
 echo [void]$summary.Add('VELOCIDADE - RESULTADOS GRAVADOS') >>"%PMET%"
-echo foreach($source in @(@('OOKLA','speedlog.txt','SPEEDTEST'),@('FAST','fastlog.txt','FAST'))){ >>"%PMET%"
+echo foreach($source in @(@('OOKLA','speedlog.txt','SPEEDTEST',$env:SPEED_MOTIVO),@('FAST','fastlog.txt','FAST',$env:FAST_MOTIVO))){ >>"%PMET%"
 echo     $path=Join-Path $Pasta $source[1] >>"%PMET%"
 echo     if(-not (Test-Path -LiteralPath $path)){ >>"%PMET%"
-echo         [void]$summary.Add($source[0]+': sem log de execucao; velocidade nao medida.') >>"%PMET%"
+echo         $reason = if ($source[3]) { $source[3] } else { 'sem log de execucao' } >>"%PMET%"
+echo         [void]$summary.Add($source[0]+': '+$reason+'; velocidade nao medida.') >>"%PMET%"
 echo         continue >>"%PMET%"
 echo     } >>"%PMET%"
 echo     $text=Get-Content -LiteralPath $path -Raw -Encoding UTF8 >>"%PMET%"
+echo     if([string]::IsNullOrWhiteSpace($text)){ >>"%PMET%"
+echo         [void]$summary.Add($source[0]+': nenhuma rodada iniciada; velocidade nao medida.') >>"%PMET%"
+echo         continue >>"%PMET%"
+echo     } >>"%PMET%"
 echo     $text=[regex]::Replace([string]$text,[string][char]27+'\[[0-9;?]*[A-Za-z]','') >>"%PMET%"
 echo     $blocks=@([regex]::Split($text,'(?m)^^(?='+$source[2]+' EM )')^|Where-Object {$_ -match ('(?m)^^'+$source[2]+' EM ')}) >>"%PMET%"
 echo     if($blocks.Count -eq 0){$blocks=@($text)} >>"%PMET%"
@@ -1924,6 +1982,9 @@ echo     $round=0 >>"%PMET%"
 echo     foreach($block in $blocks){ >>"%PMET%"
 echo         $round++ >>"%PMET%"
 echo         $dl=[regex]::Match($block,'(?im)^^\s*Download\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*([KMGT]?(?:bps^|bit/s))') >>"%PMET%"
+echo         if($source[0] -eq 'FAST' -and -not $dl.Success){ >>"%PMET%"
+echo             $dl=[regex]::Match($block,'(?im)^^[ \t]*(?:-^>[ \t]*)?([0-9]+(?:[.,][0-9]+)?)[ \t]*([KMGT]?bps)[ \t]*\r?$') >>"%PMET%"
+echo         } >>"%PMET%"
 echo         $ul=[regex]::Match($block,'(?im)^^\s*Upload\s*:\s*([0-9]+(?:[.,][0-9]+)?)\s*([KMGT]?(?:bps^|bit/s))') >>"%PMET%"
 echo         $download=Rate $dl;$upload=Rate $ul >>"%PMET%"
 echo         $idle=$null;$jitter=$null;$loss=$null;$dlLatency=$null;$ulLatency=$null >>"%PMET%"
@@ -2087,6 +2148,7 @@ echo function NotaMed($v) { if ($v -lt 0) { return -1 }; if ($v -le 50) { return
 echo function NotaMax($v) { if ($v -lt 0) { return -1 }; if ($v -le 150) { return 0 }; if ($v -le 300) { return 1 }; if ($v -le 600) { return 2 }; if ($v -le 1000) { return 3 }; return 4 } >>"%PFALA%"
 echo function NotaJit($v) { if ($v -lt 0) { return -1 }; if ($v -le 5) { return 0 }; if ($v -le 10) { return 1 }; if ($v -le 20) { return 2 }; if ($v -le 50) { return 3 }; return 4 } >>"%PFALA%"
 echo $perfilNome='GLOBAL - todos os aparelhos' >>"%PFALA%"
+echo $aparelho=([string]$env:APARELHO).Trim() >>"%PFALA%"
 echo $perfilNota='A escala classifica a perda ICMP observada. Para atribuir a perda a um aparelho, compare os destinos e confirme em outro teste.' >>"%PFALA%"
 echo $perfilTabela='Perda ICMP: 0%% EXCELENTE; ^>0 ate 0,5%% BOM; ^>0,5 ate 1%% ACEITAVEL; ^>1 ate 2,5%% RUIM; ^>2,5 ate 5%% REPROVADO; ^>5 ate 10%% PROBLEMA DETECTADO; ^>10%% PROBLEMA GRAVE.' >>"%PFALA%"
 echo function NotaPer($p) { >>"%PFALA%"
@@ -2118,14 +2180,14 @@ echo $lat = New-Object System.Collections.ArrayList >>"%PFALA%"
 echo if (Test-Path $arq) { >>"%PFALA%"
 echo foreach ($linha in (Get-Content $arq)) { >>"%PFALA%"
 echo $txt = [string]$linha >>"%PFALA%"
+echo if ($txt -match '(?i)(encontrar o host^|find host^|unknown host^|could not resolve)') { $dns++; continue } >>"%PFALA%"
 echo if ($txt.StartsWith("[SAT]")) { >>"%PFALA%"
-echo if ($txt -match "(?i)(encontrar o host|find host|esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $toSat = $toSat + 1; $envSat = $envSat + 1 } >>"%PFALA%"
+echo if ($txt -match "(?i)(esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $toSat = $toSat + 1; $envSat = $envSat + 1 } >>"%PFALA%"
 echo elseif ($txt -match "(?i)[=<]\s*([0-9]+)\s*ms") { $envSat = $envSat + 1 } >>"%PFALA%"
 echo continue >>"%PFALA%"
 echo } >>"%PFALA%"
 echo $perdeu = $false >>"%PFALA%"
-echo if ($txt -match "(?i)(encontrar o host|find host)") { $dns = $dns + 1; $perdeu = $true } >>"%PFALA%"
-echo elseif ($txt -match "(?i)(esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $perdeu = $true } >>"%PFALA%"
+echo if ($txt -match "(?i)(esgotad|timed out|inacess|unreachable|falha ger|general fail|transmit fail)") { $perdeu = $true } >>"%PFALA%"
 echo elseif ($txt -match "(?i)[=<]\s*([0-9]+)\s*ms") { $ms = [int]$Matches[1]; $env = $env + 1; $resp = $resp + 1; $seq = 0; [void]$lat.Add($ms); if ($ms -ge $limites[$i]) { $hi = $hi + 1 } } >>"%PFALA%"
 echo if ($perdeu) { $to = $to + 1; $env = $env + 1; $seq = $seq + 1; if ($seq -eq 1) { $raj = $raj + 1; if ($lastLoss -gt 0 -and ($env - $lastLoss) -le 3) { $alt = $alt + 1 } }; if ($seq -eq 2) { $rajG = $rajG + 1 }; if ($seq -gt $rajMax) { $rajMax = $seq }; $lastLoss = $env } >>"%PFALA%"
 echo } >>"%PFALA%"
@@ -2135,11 +2197,10 @@ echo $pct = 0; if ($envT -gt 0) { $pct = 100.0 * $toT / $envT } >>"%PFALA%"
 echo if ($envT -gt 0) { $pesoA[$i] = (100.0 / $envT).ToString("0.######",$ci) } >>"%PFALA%"
 echo if ($resp -gt 0) { $st = $lat ^| Measure-Object -Minimum -Maximum -Average; $pminA[$i] = [int]$st.Minimum; $pmaxA[$i] = [int]$st.Maximum; $pmedA[$i] = [math]::Round($st.Average); $ampA[$i] = $pmaxA[$i] - $pminA[$i]; $somaJ = 0; for ($z = 1; $z -lt $lat.Count; $z = $z + 1) { $somaJ = $somaJ + [math]::Abs([int]$lat[$z] - [int]$lat[$z-1]) }; if ($lat.Count -ge 2) { $jitA[$i] = [math]::Round($somaJ / ($lat.Count - 1), 1) } else { $jitA[$i] = 0 }; $ord = $lat ^| Sort-Object; $n = $ord.Count; if ($n %% 2 -eq 1) { $pmedianA[$i] = [int]$ord[[math]::Floor($n/2)] } else { $pmedianA[$i] = [int][math]::Round(($ord[$n/2 - 1] + $ord[$n/2]) / 2) } } >>"%PFALA%"
 echo $toTA[$i] = $toT; $envTA[$i] = $envT; $toA[$i] = $to; $envA[$i] = $env; $respA[$i] = $resp; $hiA[$i] = $hi; $rajA[$i] = $raj; $rajGA[$i] = $rajG; $rajMaxA[$i] = $rajMax; $altA[$i] = $alt; $dnsA[$i] = $dns; $pctA[$i] = $pct >>"%PFALA%"
-echo if ($i -eq 3 -and $temIpv6 -ne "1") { $clsA[$i] = "SEM IPV6 NA REDE"; $semIpv6 = $true; $evA[$i] = -1 } >>"%PFALA%"
+echo if ($i -eq 3 -and $temIpv6 -ne "1") { $clsA[$i] = "IPV6 NAO CONFIRMADO"; $semIpv6 = $true; $evA[$i] = -1 } >>"%PFALA%"
 echo elseif ($env -eq 0 -and $envT -gt 0) { $clsA[$i] = "SOMENTE SOB CARGA"; $evA[$i] = -1 } >>"%PFALA%"
+echo elseif ($envT -eq 0 -and $dns -gt 0) { $clsA[$i] = "ERRO DE RESOLUCAO"; $evA[$i] = -1 } >>"%PFALA%"
 echo elseif ($env -eq 0) { $clsA[$i] = "SEM DADOS"; $evA[$i] = -1 } >>"%PFALA%"
-echo elseif (($i -eq 3 -or $i -eq 5) -and $resp -eq 0 -and $dns -gt 0) { $clsA[$i] = "ALVO SEM IPV6"; $evA[$i] = -1 } >>"%PFALA%"
-echo elseif ($i -eq 3 -and $resp -eq 0) { $clsA[$i] = "SEM IPV6 NA REDE"; $semIpv6 = $true; $evA[$i] = -1 } >>"%PFALA%"
 echo elseif ($to -eq 0) { $evA[$i] = 0 } >>"%PFALA%"
 echo elseif ($rajMax -ge 3 -or ($rajMax -eq 2 -and ($env -lt 600 -or $pct -ge 1 -or $rajG -ge 2)) -or ($alt -ge 3 -and ($pct -ge 2 -or $alt -ge 6))) { $evA[$i] = 3 } >>"%PFALA%"
 echo elseif ($rajMax -eq 2 -or $alt -ge 3) { $evA[$i] = 2 } >>"%PFALA%"
@@ -2159,7 +2220,8 @@ echo if ($satur -eq 'S') { $tg += "OBS METODO: [SAT] marca Speedtest/Fast ativo.
 echo if ($satur -eq 'S' -and $conx -match '2\.4') { $tg += "OBS BANDA: Wi-Fi 2.4 GHz pode sofrer disputa do meio durante o teste. A origem da piora nao foi comprovada. Comparar em 5 GHz e no cabo." } >>"%PFALA%"
 echo # v1057: medidas sob carga preservadas, separadas da latencia fora de SAT. >>"%PFALA%"
 echo $carga = @('COMPARACAO FORA DE SAT / SOB CARGA - SPEEDTEST E FAST', '[SAT] indica teste ativo, nao comprova saturacao nem a causa de uma falha.', 'Fora de SAT pode incluir outros trafegos, inclusive ABA 9.', 'Enviados abaixo sao tentativas ICMP, nao trafego da live.', '') >>"%PFALA%"
-echo $csvCarga = @('alvo;periodo;enviados;respondidos;perdidos;perda_percentual;ping_min_ms;ping_medio_ms;ping_max_ms;maior_rajada') >>"%PFALA%"
+echo $csvCarga = @('alvo;periodo;enviados;respondidos;perdidos;perda_percentual;ping_min_ms;ping_medio_ms;ping_max_ms;maior_rajada;ping_p95_ms') >>"%PFALA%"
+echo $carga += 'P95: valor que cobre 95 por cento dos RTTs observados, exibido com pelo menos 20 respostas no periodo.' >>"%PFALA%"
 echo $temCarga = $false >>"%PFALA%"
 echo for ($k = 0; $k -lt $alvos.Count; $k = $k + 1) { >>"%PFALA%"
 echo     $pathCarga = Join-Path $pasta $alvos[$k] >>"%PFALA%"
@@ -2168,9 +2230,10 @@ echo     $amCarga = @(@{N=0; R=0; P=0; Seq=0; Raj=0; Lat=(New-Object Collections
 echo     $ultimoPeriodo = -1 >>"%PFALA%"
 echo     foreach ($linhaCarga in (Get-Content $pathCarga)) { >>"%PFALA%"
 echo         $txtCarga = [string]$linhaCarga >>"%PFALA%"
+echo         if ($txtCarga -match '(?i)(encontrar o host^|find host^|unknown host^|could not resolve)') { continue } >>"%PFALA%"
 echo         $periodo = 0 >>"%PFALA%"
 echo         if ($txtCarga.StartsWith('[SAT]')) { $periodo = 1 } >>"%PFALA%"
-echo         $falhou = $txtCarga -match '(?i)(encontrar o host^|find host^|esgotad^|timed out^|inacess^|unreachable^|falha ger^|general fail^|transmit fail)' >>"%PFALA%"
+echo         $falhou = $txtCarga -match '(?i)(esgotad^|timed out^|inacess^|unreachable^|falha ger^|general fail^|transmit fail)' >>"%PFALA%"
 echo         $rttCarga = -1 >>"%PFALA%"
 echo         if (-not $falhou -and $txtCarga -match '(?i)[=^<]\s*([0-9]+)\s*ms') { $rttCarga = [int]$Matches[1] } >>"%PFALA%"
 echo         if (-not $falhou -and $rttCarga -lt 0) { continue } >>"%PFALA%"
@@ -2191,6 +2254,7 @@ echo     for ($p = 0; $p -le 1; $p = $p + 1) { >>"%PFALA%"
 echo         $am = $amCarga[$p] >>"%PFALA%"
 echo         $rotulo = 'FORA DE SAT'; if ($p -eq 1) { $rotulo = 'SOB CARGA [SAT]' } >>"%PFALA%"
 echo         $minCarga = '-'; $medCarga = '-'; $maxCarga = '-'; $perCarga = '-' >>"%PFALA%"
+echo         $p95Carga = '-' >>"%PFALA%"
 echo $classeCarga='SEM DADOS' >>"%PFALA%"
 echo if($am.N -gt 0){$perCargaRaw=100.0*$am.P/$am.N;$perCarga=$perCargaRaw.ToString('0.######',$ci);$classeCarga=$ESC[(NotaPer $perCargaRaw)]} >>"%PFALA%"
 echo         if ($am.R -gt 0) { >>"%PFALA%"
@@ -2198,17 +2262,25 @@ echo             $statsCarga = $am.Lat ^| Measure-Object -Minimum -Maximum -Aver
 echo             $minCarga = [string]$statsCarga.Minimum >>"%PFALA%"
 echo             $medCarga = ([math]::Round($statsCarga.Average, 1)).ToString($ci) >>"%PFALA%"
 echo             $maxCarga = [string]$statsCarga.Maximum >>"%PFALA%"
+echo             if ($am.R -ge 20) { >>"%PFALA%"
+echo                 $ordered = @($am.Lat ^| Sort-Object) >>"%PFALA%"
+echo                 $p95Index = [int][math]::Ceiling(0.95*$ordered.Count) - 1 >>"%PFALA%"
+echo                 $p95Carga = [string]$ordered[$p95Index] >>"%PFALA%"
+echo             } >>"%PFALA%"
 echo         } >>"%PFALA%"
 echo         $carga += ('  {0}: enviados {1}; respondidos {2}; perdidos {3}; perda {4}%%; RTT min/medio/max {5}/{6}/{7} ms; maior rajada {8}.' -f $rotulo,$am.N,$am.R,$am.P,$perCarga,$minCarga,$medCarga,$maxCarga,$am.Raj) >>"%PFALA%"
 echo         if ($am.N -eq 0) { $carga += '  SEM AMOSTRAS neste periodo; nao permite aprovar nem reprovar.' } >>"%PFALA%"
-echo         $csvCarga += (@($nomes[$k],$rotulo,$am.N,$am.R,$am.P,$perCarga,$minCarga,$medCarga,$maxCarga,$am.Raj) -join ';') >>"%PFALA%"
+echo         if ($p95Carga -ne '-') { $carga += '  RTT P95: ' + $p95Carga + ' ms.' } >>"%PFALA%"
+echo         $csvCarga += (@($nomes[$k],$rotulo,$am.N,$am.R,$am.P,$perCarga,$minCarga,$medCarga,$maxCarga,$am.Raj,$p95Carga) -join ';') >>"%PFALA%"
 echo         $carga += "  Classificacao da perda ICMP: " + $classeCarga + " / perfil " + $perfilNome >>"%PFALA%"
 echo     } >>"%PFALA%"
-echo     if ($amCarga[0].R -gt 0 -and $amCarga[1].R -gt 0) { >>"%PFALA%"
+echo     if ($amCarga[0].R -ge 20 -and $amCarga[1].R -ge 20) { >>"%PFALA%"
 echo         $medFora = ($amCarga[0].Lat ^| Measure-Object -Average).Average >>"%PFALA%"
 echo         $medDentro = ($amCarga[1].Lat ^| Measure-Object -Average).Average >>"%PFALA%"
 echo         $deltaCarga = ([math]::Round($medDentro - $medFora, 1)).ToString($ci) >>"%PFALA%"
-echo         $carga += '  Diferenca de RTT medio sob carga menos fora de SAT: ' + $deltaCarga + ' ms. Comparacao indicativa, nao diagnostico da ONU.' >>"%PFALA%"
+echo         $carga += '  Diferenca de RTT medio em SAT menos fora de SAT: ' + $deltaCarga + ' ms.' >>"%PFALA%"
+echo     } elseif ($amCarga[1].N -gt 0) { >>"%PFALA%"
+echo         $carga += '  Amostra curta para comparar o RTT: minimo de 20 respostas em cada periodo.' >>"%PFALA%"
 echo     } >>"%PFALA%"
 echo     if ($amCarga[1].P -gt 0) { $carga += '  ATENCAO: houve perda ICMP durante o teste. Preservada para investigacao; [SAT] nao torna a perda inofensiva.' } >>"%PFALA%"
 echo     $carga += '' >>"%PFALA%"
@@ -2264,9 +2336,9 @@ echo $rel += "---------------------------------------------------------" >>"%PFA
 echo $totTo = 0; $totHi = 0; $problemas = @(); $atencoes = @(); $suspeitos = @(); $reprovados = @(); $ruins = @(); $detalhe = "" >>"%PFALA%"
 echo $linhasCsv = @("alvo;enviados;perdidos;perda_percentual;ping_min;ping_medio;ping_max;picos;classificacao") >>"%PFALA%"
 echo for ($i = 0; $i -lt 6; $i = $i + 1) { >>"%PFALA%"
-echo if ($i -ge 4 -and $envTA[$i] -eq 0) { continue } >>"%PFALA%"
+echo if ($i -ge 4 -and $envTA[$i] -eq 0 -and $dnsA[$i] -eq 0) { continue } >>"%PFALA%"
 echo $envLimpo = $envA[$i]; $to = $toTA[$i]; $env = $envTA[$i]; $resp = $respA[$i]; $hi = $hiA[$i]; $raj = $rajA[$i]; $rajG = $rajGA[$i]; $rajMax = $rajMaxA[$i]; $alt = $altA[$i]; $pct = $pctA[$i]; $peso = $pesoA[$i] >>"%PFALA%"
-echo $pctTxt = $pct.ToString("0.######",$ci) >>"%PFALA%"
+echo $pctTxt = if ($env -gt 0) { $pct.ToString("0.######",$ci) } else { "-" } >>"%PFALA%"
 echo $pmin = "-"; $pmed = "-"; $pmax = "-"; $jit = "-" >>"%PFALA%"
 echo if ($resp -gt 0) { $pmin = $pminA[$i]; $pmed = $pmedA[$i]; $pmax = $pmaxA[$i]; $jit = $jitA[$i] } >>"%PFALA%"
 echo $obs = "" >>"%PFALA%"
@@ -2346,8 +2418,8 @@ echo if ($classe -like "PROBLEMA*" -and $env -gt 0 -and $env -lt 300) { $obs = $
 echo $clsA[$i] = $classe >>"%PFALA%"
 echo } >>"%PFALA%"
 echo $ana = "" >>"%PFALA%"
-echo if ($classe -eq "SEM IPV6 NA REDE") { $ana = "A rede nao entrega IPv6. Nao e falha do link." } >>"%PFALA%"
-echo elseif ($classe -eq "ALVO SEM IPV6") { $ana = "O destino nao tem registro AAAA. Nao e falha do link." } >>"%PFALA%"
+echo if ($classe -eq "IPV6 NAO CONFIRMADO") { $ana = "A checagem inicial nao confirmou IPv6 para a coleta." } >>"%PFALA%"
+echo elseif ($classe -eq "ERRO DE RESOLUCAO") { $ana = "O nome do destino nao foi resolvido para a familia testada. Confira o alvo e o DNS." } >>"%PFALA%"
 echo elseif ($classe -eq "SOMENTE SOB CARGA") { $ana = "Ha amostras em SAT, exibidas em SOB_CARGA.txt; nao ha amostras fora de SAT para julgar latencia sem o teste." } >>"%PFALA%"
 echo elseif ($classe -eq "SEM DADOS") { $ana = "Aba nao utilizada neste teste." } >>"%PFALA%"
 echo elseif ($classe -like "PROBLEMA*" -and $i -eq 0) { $ana = "Perda continua no proprio gateway - falha fisica no trecho local (Wi-Fi, cabo, placa ou roteador). " + $obs } >>"%PFALA%"
@@ -2370,7 +2442,7 @@ echo $rel += "   Ping minimo ........: " + $pmin + " ms" >>"%PFALA%"
 echo $rel += "   Ping medio .........: " + $pmed + " ms" >>"%PFALA%"
 echo $rel += "   Ping mediana .......: " + $(if ($pmedianA[$i] -ge 0) { [string]$pmedianA[$i] + " ms - valor central, ignora picos" } else { "-" }) >>"%PFALA%"
 echo $rel += "   Ping maximo ........: " + $pmax + " ms" >>"%PFALA%"
-echo $rel += "   Variacao (max-min) .: " + $jit + " ms" >>"%PFALA%"
+echo $rel += "   Variacao media RTT .: " + $jit + " ms" >>"%PFALA%"
 echo $rel += "   Picos acima de " + $limites[$i] + " ms: " + $hi + $(if ($hi -eq 1 -and $pmaxA[$i] -gt (2*$limites[$i])) { "  (1 pico isolado - ver observacao)" } else { "" }) >>"%PFALA%"
 echo $rel += "   Perda em rajada ....: " + $rajG + " evento(s) de 2+ / maior rajada " + $rajMax + " pacotes" >>"%PFALA%"
 echo $rel += "   Perda alternada ....: " + $alt + " perdas em cadencia curta" >>"%PFALA%"
@@ -2381,10 +2453,10 @@ echo $linhasCsv += ($nomes[$i] + ";" + $env + ";" + $to + ";" + $pctTxt + ";" + 
 echo $tg += $nomes[$i] + " (" + $ends[$i] + ")" >>"%PFALA%"
 echo $tg += "   perda " + $pctTxt + " %% - min " + $pmin + " / med " + $pmed + " / max " + $pmax + " ms - picos " + $hi >>"%PFALA%"
 echo $tg += "   " + $classe + $puxou >>"%PFALA%"
-echo $detalhe = $detalhe + $nomes[$i] + ": perda " + $pctTxt + " por cento, minimo " + $pmin + " ms, media " + $pmed + " ms, maximo " + $pmax + " ms, " + $hi + " picos, " + $classe + ". " >>"%PFALA%"
+echo if ($env -eq 0) { $detalhe += $nomes[$i] + ": " + $classe + ". " } else { $detalhe = $detalhe + $nomes[$i] + ": perda " + $pctTxt + " por cento, minimo " + $pmin + " ms, media " + $pmed + " ms, maximo " + $pmax + " ms, " + $hi + " picos, " + $classe + ". " } >>"%PFALA%"
 echo if ($classe -eq "SEM DADOS") { continue } >>"%PFALA%"
-echo if ($classe -eq "ALVO SEM IPV6") { continue } >>"%PFALA%"
-echo if ($classe -eq "SEM IPV6 NA REDE" -and $ipv6Conta -ne "1") { continue } >>"%PFALA%"
+echo if ($classe -eq "ERRO DE RESOLUCAO") { continue } >>"%PFALA%"
+echo if ($classe -eq "IPV6 NAO CONFIRMADO" -and $ipv6Conta -ne "1") { continue } >>"%PFALA%"
 echo $totTo = $totTo + $to >>"%PFALA%"
 echo $totHi = $totHi + $hi >>"%PFALA%"
 echo if ($classe -like "PROBLEMA*") { $tag = "rajada de " + $rajMax; if ($rajMax -lt 2) { $tag = "padrao alternado" }; $problemas += ($nomes[$i] + " (" + $tag + ")") } >>"%PFALA%"
@@ -2400,7 +2472,7 @@ echo for ($j = 0; $j -lt 6; $j = $j + 1) { if ($evA[$j] -ge 0) { $k = [array]::I
 echo if ($pioresc -lt 0) { $pioresc = 0 } >>"%PFALA%"
 echo if ($pioresc -gt 6) { $pioresc = 6 } >>"%PFALA%"
 echo if ($conx -match "(?i)^ATENCAO") { $curto = $curto + "Atencao, LAN e Wi-Fi ligados ao mesmo tempo. " } >>"%PFALA%"
-echo if ($semIpv6) { $curto = $curto + "Rede sem IPv6. " } >>"%PFALA%"
+echo if ($semIpv6) { $curto = $curto + "IPv6 nao confirmado. " } >>"%PFALA%"
 echo if ($problemas.Count -gt 0) { >>"%PFALA%"
 echo $curto = $curto + "Perda continua em " + ($problemas -join ", e ") + ". Falha real detectada." >>"%PFALA%"
 echo if ($reprovados.Count -gt 0) { $curto = $curto + " Latencia tambem reprovada em " + ($reprovados -join ", ") + "." } >>"%PFALA%"
@@ -2530,10 +2602,10 @@ echo $diagT += "Sem perda e sem jitter relevante, porem com latencia media alta.
 echo $diagT += "Costuma indicar rota longa, PoP distante ou saturacao constante de upstream - nao e defeito do equipamento do cliente." >>"%PFALA%"
 echo } >>"%PFALA%"
 echo if ($cen -eq 'OK') { >>"%PFALA%"
-echo $diagT += "Entrega integra em todos os alvos: sem perda continua, sem rajadas e sem picos de latencia." >>"%PFALA%"
-echo $diagT += "Enlace dentro do padrao para trafego de tempo real." >>"%PFALA%"
+echo if ($envA[1] -gt 0) { $diagT += "Sem perda continua ou picos nos alvos com amostras validas." } else { $diagT += "Avaliacao da internet inconclusiva: sem amostras validas fora de SAT." } >>"%PFALA%"
+echo if ($envA[1] -gt 0) { $diagT += "Ping indica as condicoes no periodo medido." } >>"%PFALA%"
 echo } >>"%PFALA%"
-echo if ($semIpv6) { $diagT += "OBS: a rede nao entrega IPv6." } >>"%PFALA%"
+echo if ($semIpv6) { $diagT += "OBS: IPv6 nao confirmado na checagem inicial." } >>"%PFALA%"
 echo $pts = 0; $sinais = @() >>"%PFALA%"
 echo if ($gwProb) { $pts = $pts + 3; $sinais += "perda continua no proprio gateway (falha local evidente)" } >>"%PFALA%"
 echo if ($nForte -ge 1) { $pts = $pts + (2 * $nForte); $sinais += [string]$nForte + " destino(s) com evidencia forte (rajada ou alternancia intensa)" } >>"%PFALA%"
@@ -2635,7 +2707,7 @@ echo } >>"%PFALA%"
 echo if ($semIpv6) { >>"%PFALA%"
 echo $dg += "" >>"%PFALA%"
 echo $dg += "[IPv6]" >>"%PFALA%"
-echo $dg += "  Rede sem IPv6. Nao e defeito, fica apenas registrado." >>"%PFALA%"
+echo $dg += "  IPv6 nao confirmado na checagem inicial." >>"%PFALA%"
 echo } >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "---------------------------------------------------------" >>"%PFALA%"
@@ -2658,7 +2730,7 @@ echo $rel += "  Perfil interno de diagnostico; nao equivale a tolerancia do equi
 echo $rel += "" >>"%PFALA%"
 echo $rel += "  Toda perda registrada entra na classificacao, isolada ou em rajada." >>"%PFALA%"
 echo $rel += "  Jitter     : media das diferencas entre pacotes consecutivos" >>"%PFALA%"
-echo $rel += "               (RFC 3550). ate 5 ms EXCELENTE / 10 ms BOM /" >>"%PFALA%"
+echo $rel += "               como indicador de variacao do ping. Ate 5 ms EXCELENTE / 10 ms BOM /" >>"%PFALA%"
 echo $rel += "               20 ms ACEITAVEL / 50 ms RUIM / acima REPROVADO." >>"%PFALA%"
 echo $rel += "" >>"%PFALA%"
 echo $rel += "  METODO: todas as medidas vem de ping (ICMP) e sao INDICATIVAS." >>"%PFALA%"
@@ -2720,15 +2792,16 @@ echo $rel += "  o score fica limitado, mesmo que uma metrica isolada esteja boa.
 echo $rel += "  Perda 0 %% NAO aprova sozinha: latencia alta reprova por si so." >>"%PFALA%"
 echo $rel += "=========================================================" >>"%PFALA%"
 echo $semBaseInternet=($envA[1] -eq 0) >>"%PFALA%"
-echo $resultadoGeral=if($semBaseInternet){'INCONCLUSIVO FORA DE SAT'}else{$ESC[[math]::Max(0,[math]::Min(6,$pioresc))]} >>"%PFALA%"
-echo $scoreTexto=if($semBaseInternet){'NAO CALCULADO - sem amostras de internet fora de SAT'}else{[string]$score+'/100 ('+$scLbl+')'} >>"%PFALA%"
-echo if($semBaseInternet){$curto='Sem amostras de internet fora de SAT. Consulte as medidas SOB CARGA e o resultado de velocidade; este teste nao permite aprovar a latencia sem carga.'} >>"%PFALA%"
+echo $resultadoGeral=if($envTA[1] -eq 0){'INCONCLUSIVO - SEM AMOSTRAS DE INTERNET'}elseif($semBaseInternet){'INCONCLUSIVO FORA DE SAT'}else{$ESC[[math]::Max(0,[math]::Min(6,$pioresc))]} >>"%PFALA%"
+echo $scoreTexto=if($semBaseInternet){'NAO CALCULADO - sem amostras de internet para pontuar'}else{[string]$score+'/100 ('+$scLbl+')'} >>"%PFALA%"
+echo if($envTA[1] -eq 0){$curto='O teste nao registrou amostras de ping para o alvo de internet. Confira o endereco e os registros e repita o teste.'}elseif($semBaseInternet){$curto='Sem amostras de internet fora de SAT. Consulte as medidas SOB CARGA e o resultado de velocidade; este teste nao permite aprovar a latencia sem carga.'} >>"%PFALA%"
 echo $topo = @() >>"%PFALA%"
 echo $topo += "=========================================================" >>"%PFALA%"
 echo $topo += "  RESUMO DO LAUDO" >>"%PFALA%"
 echo $topo += "=========================================================" >>"%PFALA%"
 echo $topo += "  Tecnico ...: " + $tec >>"%PFALA%"
 echo $topo += "  Cliente ...: " + $cli >>"%PFALA%"
+echo if ($aparelho) { $topo += "  Aparelho ..: " + $aparelho } >>"%PFALA%"
 echo $topo += "  Conexao ...: " + $conx >>"%PFALA%"
 echo $topo += "  Perfil ....: " + $perfilNome >>"%PFALA%"
 echo $topo += "  Data ......: " + (Get-Date -Format "dd/MM/yyyy HH:mm") >>"%PFALA%"
@@ -2764,22 +2837,12 @@ echo Write-Host ($diagT -join " ") -ForegroundColor Yellow >>"%PFALA%"
 echo Write-Host ("Confianca: " + $conf) -ForegroundColor Magenta >>"%PFALA%"
 echo Write-Host $curto -ForegroundColor Green >>"%PFALA%"
 echo if ($modo -in @('curto','longo')) { >>"%PFALA%"
-echo     $voz = $null >>"%PFALA%"
-echo     try { >>"%PFALA%"
-echo         Write-Host 'Lendo o resultado do teste...' >>"%PFALA%"
-echo         Add-Type -AssemblyName System.Speech -ErrorAction Stop >>"%PFALA%"
-echo         $voz = New-Object System.Speech.Synthesis.SpeechSynthesizer -ErrorAction Stop >>"%PFALA%"
-echo         $vozBrasil = $voz.GetInstalledVoices() ^| Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -eq 'pt-BR' } ^| Select-Object -First 1 >>"%PFALA%"
-echo         if ($vozBrasil) { $voz.SelectVoice($vozBrasil.VoiceInfo.Name) } >>"%PFALA%"
-echo         $voz.SetOutputToDefaultAudioDevice() >>"%PFALA%"
-echo         $voz.Speak($fala) >>"%PFALA%"
-echo     } catch { >>"%PFALA%"
-echo         Write-Warning 'A leitura em voz alta ficou indisponivel. Confira o resultado salvo no laudo.' >>"%PFALA%"
-echo     } finally { >>"%PFALA%"
-echo         if ($voz) { $voz.Dispose() } >>"%PFALA%"
-echo     } >>"%PFALA%"
+echo     Write-Host 'Lendo o resultado do teste...' >>"%PFALA%"
+echo     try { ^& $env:PVOZ -Texto $fala -ArquivoWav (Join-Path $pasta 'LAUDO_AUDIO.wav') } >>"%PFALA%"
+echo     catch { Write-Warning ('Falha na leitura do laudo: ' + $_.Exception.Message) } >>"%PFALA%"
 echo } >>"%PFALA%"
 
+if /i not "%VOZ_MODO%"=="nao" call :PREPARAR_VOZ
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PFALA%" "%LAUDO%" "%VOZ_MODO%" "%IPV6_NO_VEREDITO%" "%TEM_IPV6%" "%DUR_REAL%" "%TECNICO%" "%CLIENTE%" "%CONEXAO%" "%GW%" "%ALVO_INTERNET%" "%SERVIDOR%" "%IPV6_USADO%" "%ALVO_EXTRA%" "%ALVO_EXTRA_IPV6%" %LIMITE_ROTEADOR% %LIMITE_INTERNET% %LIMITE_SERVIDOR% %LIMITE_IPV6% %LIMITE_EXTRA% %LIMITE_EXTRA_IPV6% "%OS_ID%" "%SATURA%" "%GW_TXT%" "%GW_MAC%"
 if errorlevel 1 (
   echo [ERRO] Falha ao gerar o laudo. Os logs brutos foram preservados.
@@ -2876,7 +2939,7 @@ if exist "%LAUDO%\PERDA_PACOTES.csv" (
   echo   [AVISO] PERDA_PACOTES.csv nao encontrado - veja os logs de ping.
 )
 echo   Toda perda registrada entra na classificacao. Rajada agrava a nota.
-echo   A perda so nao condena quando o proprio teste prova ser limite de ICMP.
+echo   Compare os destinos e confirme por cabo antes de atribuir a perda ao aparelho.
 echo.
 if exist "%LAUDO%\VELOCIDADE_RESUMO.txt" type "%LAUDO%\VELOCIDADE_RESUMO.txt"
 echo.
@@ -2884,9 +2947,6 @@ echo  LAUDO TECNICO : %LAUDO%\VEREDITO.txt
 echo  PASTA COMPLETA: %LAUDO%
 echo.
 echo  Tracando a rota ate a internet (tracert) - aguarde...
-:: pausa curta: depois de minutos de ping, roteador e borda costumam estar
-:: com o ICMP no limite. Sem essa folga o tracert volta so com asteriscos.
-timeout /t 8 /nobreak >nul
 :: -4 fixa IPv4 / -h 30 igual ao tracert manual / -w 3000 da tempo do
 :: roteador montar o ICMP de resposta - ele faz isso com prioridade baixa
 :: ATENCAO: dentro dos parenteses NAO pode comentario nem parentese solto
@@ -2903,7 +2963,7 @@ echo  Rota salva em ROTA_tracert.txt
 echo.
 
 :: Limpar somente nomes definidos e arquivos existentes. Nunca passar "" ao DEL.
-for %%V in (PBEEP PFALA PWAIT PTG PNET PCHK PSAN PVER PCTRL PVEL PMET PFIM speed_BAT fast_BAT PSEL) do if defined %%V (
+for %%V in (PBEEP PFALA PWAIT PTG PNET PCHK PSAN PVER PCTRL PVEL PMET PFIM speed_BAT fast_BAT PSEL PVOZ) do if defined %%V (
   if exist "!%%V!" if not exist "!%%V!\" del /q "!%%V!" >nul 2>&1
 )
 for %%F in ("%LAUDO%\_sat_speed.flag" "%LAUDO%\_sat_fast.flag") do if exist "%%~fF" del /q "%%~fF" >nul 2>&1
@@ -3205,7 +3265,7 @@ if not defined IA_KEY goto IA_SEM_CHAVE
 if /i "%IA_KEY%"=="x" goto IA_SEM_CHAVE
 
 :: monta um resumo curto do teste pra dar contexto a IA
-set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest habilitado durante a coleta (S/N): %SATURA%. [SAT] marca teste ativo e NAO descarta falha sob carga. Ping geral usa amostras fora de [SAT] e perda geral inclui [SAT]. Leia SOB_CARGA.txt e OBSERVACAO_LIVE.txt. Travamento relatado pelo tecnico exige investigacao; nao confirme nem exclua defeito na ONU com ping apenas. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. As medidas vem de ping (ICMP) e sao indicativas, nao equivalem ao trafego real. O jitter informado e a media das diferencas entre pacotes consecutivos (RFC 3550), nao a amplitude maximo menos minimo. Medicoes por destino a seguir:"
+set "CTX=DADOS DO TESTE (unica fonte de numeros). O.S.: %OS_ID%. Tecnico: %TECNICO%. Cliente: %CLIENTE%. Conexao do PC de teste: %CONEXAO%. Gateway: %GW%. Speedtest habilitado durante a coleta (S/N): %SATURA%. [SAT] marca teste ativo e NAO descarta falha sob carga. Ping geral usa amostras fora de [SAT] e perda geral inclui [SAT]. Leia SOB_CARGA.txt e OBSERVACAO_LIVE.txt. Travamento relatado pelo tecnico exige investigacao; nao confirme nem exclua defeito na ONU com ping apenas. NAO MEDIDO NESTE TESTE: quantidade de dispositivos conectados, potencia optica, canal Wi-Fi, velocidade contratada, consumo de banda. As medidas vem de ping (ICMP) e sao indicativas, nao equivalem ao trafego real. A variacao de ping e a media das diferencas absolutas entre RTTs ICMP consecutivos. Medicoes por destino a seguir:"
 if exist "%LAUDO%\OBSERVACAO_LIVE.txt" for /f "usebackq delims=" %%L in ("%LAUDO%\OBSERVACAO_LIVE.txt") do set "CTX=!CTX! Relato do tecnico sobre a live: %%L"
 set "CTX=!CTX! Perfil global de perda. A escala do laudo considera 2,5 por cento de perda ICMP RUIM para qualquer aparelho. Use a classificacao por destino para avaliar o teste. Para atribuir a perda ao aparelho, solicite comparacao por cabo/Wi-Fi e entre destinos."
 if exist "%LAUDO%\PERDA_PACOTES.csv" (
@@ -4743,12 +4803,117 @@ goto :eof
 echo %~1| findstr /r /c:"^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >nul && set "GW=%~1"
 goto :eof
 
+:PREPARAR_VOZ
+if defined PVOZ if exist "%PVOZ%" goto :eof
+set "PVOZ=%TEMP%\lr_voz_%STAMP%_%RANDOM%_%RANDOM%.ps1"
+echo param([Parameter(Mandatory=$true)][string]$Texto,[string]$ArquivoWav,[switch]$Teste) >>"%PVOZ%"
+echo $ErrorActionPreference = 'Stop' >>"%PVOZ%"
+echo $temporario = -not $ArquivoWav >>"%PVOZ%"
+echo $wav = if ($temporario) { Join-Path $env:TEMP ('lr_voz_'+[guid]::NewGuid().ToString('N')+'.wav') } else { $ArquivoWav } >>"%PVOZ%"
+echo function Save-WindowsVoice([string]$text,[string]$path) { >>"%PVOZ%"
+echo     Add-Type -AssemblyName System.Runtime.WindowsRuntime >>"%PVOZ%"
+echo     $synthType = [Windows.Media.SpeechSynthesis.SpeechSynthesizer,Windows.Media.SpeechSynthesis,ContentType=WindowsRuntime] >>"%PVOZ%"
+echo     $streamType = [Windows.Media.SpeechSynthesis.SpeechSynthesisStream,Windows.Media.SpeechSynthesis,ContentType=WindowsRuntime] >>"%PVOZ%"
+echo     $synth = $synthType::new() >>"%PVOZ%"
+echo     try { >>"%PVOZ%"
+echo         $pt = $synthType::AllVoices ^| Where-Object Language -eq 'pt-BR' ^| Select-Object -First 1 >>"%PVOZ%"
+echo         if ($pt) { $synth.Voice = $pt } >>"%PVOZ%"
+echo         $asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() ^| Where-Object { >>"%PVOZ%"
+echo             $_.Name -eq 'AsTask' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 -and >>"%PVOZ%"
+echo                 $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation'+[char]96+'1' >>"%PVOZ%"
+echo         } ^| Select-Object -First 1 >>"%PVOZ%"
+echo         $operation = $synth.SynthesizeTextToStreamAsync($text) >>"%PVOZ%"
+echo         $task = $asTask.MakeGenericMethod($streamType).Invoke($null,@($operation)) >>"%PVOZ%"
+echo         if (-not $task.Wait(15000)) { $operation.Cancel(); throw 'Tempo esgotado ao sintetizar a voz.' } >>"%PVOZ%"
+echo         $stream = $task.GetAwaiter().GetResult() >>"%PVOZ%"
+echo         try { >>"%PVOZ%"
+echo             $inputStream = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream.GetInputStreamAt(0)) >>"%PVOZ%"
+echo             try { >>"%PVOZ%"
+echo                 $file = [IO.File]::Create($path) >>"%PVOZ%"
+echo                 try { $inputStream.CopyTo($file) } finally { $file.Dispose() } >>"%PVOZ%"
+echo             } finally { $inputStream.Dispose() } >>"%PVOZ%"
+echo         } finally { $stream.Dispose() } >>"%PVOZ%"
+echo         return $synth.Voice.DisplayName >>"%PVOZ%"
+echo     } finally { $synth.Dispose() } >>"%PVOZ%"
+echo } >>"%PVOZ%"
+echo function Save-ClassicVoice([string]$text,[string]$path) { >>"%PVOZ%"
+echo     Add-Type -AssemblyName System.Speech >>"%PVOZ%"
+echo     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer >>"%PVOZ%"
+echo     try { >>"%PVOZ%"
+echo         $pt = $synth.GetInstalledVoices() ^| Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -eq 'pt-BR' } ^| Select-Object -First 1 >>"%PVOZ%"
+echo         if ($pt) { $synth.SelectVoice($pt.VoiceInfo.Name) } >>"%PVOZ%"
+echo         $synth.Volume = 100 >>"%PVOZ%"
+echo         $synth.SetOutputToWaveFile($path) >>"%PVOZ%"
+echo         $synth.Speak($text) >>"%PVOZ%"
+echo         return $synth.Voice.Name >>"%PVOZ%"
+echo     } finally { $synth.Dispose() } >>"%PVOZ%"
+echo } >>"%PVOZ%"
+echo $gerado = $false >>"%PVOZ%"
+echo $reproduziu = $false >>"%PVOZ%"
+echo try { >>"%PVOZ%"
+echo     try { >>"%PVOZ%"
+echo         $nome = Save-WindowsVoice $Texto $wav >>"%PVOZ%"
+echo     } catch { >>"%PVOZ%"
+echo         $erroWindows = $_.Exception.GetBaseException().Message >>"%PVOZ%"
+echo         try { $nome = Save-ClassicVoice $Texto $wav } >>"%PVOZ%"
+echo         catch { throw ('Voz do Windows: {0}. Voz classica: {1}' -f $erroWindows,$_.Exception.GetBaseException().Message) } >>"%PVOZ%"
+echo     } >>"%PVOZ%"
+echo     $gerado = $true >>"%PVOZ%"
+echo     if (-not $temporario) { Write-Host ('Audio salvo: '+$wav) } >>"%PVOZ%"
+echo     Write-Host ('Voz: '+$nome) >>"%PVOZ%"
+echo     $player = New-Object System.Media.SoundPlayer -ArgumentList $wav >>"%PVOZ%"
+echo     try { >>"%PVOZ%"
+echo         $player.Load() >>"%PVOZ%"
+echo         $player.PlaySync() >>"%PVOZ%"
+echo         $reproduziu = $true >>"%PVOZ%"
+echo     } finally { $player.Dispose() } >>"%PVOZ%"
+echo } catch { >>"%PVOZ%"
+echo     Write-Warning ('Falha na leitura: '+$_.Exception.GetBaseException().Message) >>"%PVOZ%"
+echo     if ($gerado -and -not $temporario) { Write-Warning 'O arquivo LAUDO_AUDIO.wav pode ser reproduzido depois.' } >>"%PVOZ%"
+echo } finally { >>"%PVOZ%"
+echo     if ($temporario -or -not $gerado) { Remove-Item -LiteralPath $wav -ErrorAction SilentlyContinue } >>"%PVOZ%"
+echo } >>"%PVOZ%"
+echo if ($Teste -and -not $reproduziu) { exit 1 } >>"%PVOZ%"
+goto :eof
+
 :LOCALIZAR
 setlocal DisableDelayedExpansion
 set "_ACHOU="
-for /f "delims=" %%f in ('dir /b /a-d "%AQUI%%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%AQUI%%%f"
-if not defined _ACHOU for /f "delims=" %%f in ('where "%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%%f"
-if not defined _ACHOU for /f "delims=" %%f in ('dir /b /a-d "%USERPROFILE%\Downloads\%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%USERPROFILE%\Downloads\%%f"
-if not defined _ACHOU for /f "delims=" %%f in ('dir /b /a-d "%USERPROFILE%\Desktop\%~2" 2^>nul') do if not defined _ACHOU set "_ACHOU=%USERPROFILE%\Desktop\%%f"
+for /f "delims=" %%f in ('dir /b /a-d "%AQUI%%~2" 2^>nul') do if /i "%%~xf"==".exe" if not defined _ACHOU set "_ACHOU=%AQUI%%%f"
+if not defined _ACHOU for /f "delims=" %%f in ('where "%~2" 2^>nul') do if /i "%%~xf"==".exe" if not defined _ACHOU set "_ACHOU=%%f"
+if not defined _ACHOU for /f "delims=" %%f in ('dir /b /a-d "%USERPROFILE%\Downloads\%~2" 2^>nul') do if /i "%%~xf"==".exe" if not defined _ACHOU set "_ACHOU=%USERPROFILE%\Downloads\%%f"
+if not defined _ACHOU for /f "delims=" %%f in ('dir /b /a-d "%USERPROFILE%\Desktop\%~2" 2^>nul') do if /i "%%~xf"==".exe" if not defined _ACHOU set "_ACHOU=%USERPROFILE%\Desktop\%%f"
+if not defined _ACHOU call :LOCALIZAR_PACOTE "%~2"
 endlocal & set "%~1=%_ACHOU%"
+goto :eof
+
+:: Busca limitada a pastas de teste reconheciveis, ate dois niveis.
+:LOCALIZAR_PACOTE
+set "_LAUDO_BUSCA=%~1"
+set "_PS_BUSCA=%TEMP%\lr_busca_%RANDOM%_%RANDOM%.ps1"
+echo $desktop = [Environment]::GetFolderPath('DesktopDirectory') >>"%_PS_BUSCA%"
+echo $roots = @($env:AQUI, $desktop, (Join-Path $env:USERPROFILE 'Desktop'), (Join-Path $env:USERPROFILE 'Downloads')) >>"%_PS_BUSCA%"
+echo function Find-Exe([string]$path) { >>"%_PS_BUSCA%"
+echo     Get-ChildItem -LiteralPath $path -Filter $env:_LAUDO_BUSCA -File -ErrorAction SilentlyContinue ^| Where-Object Extension -eq '.exe' ^| Select-Object -First 1 >>"%_PS_BUSCA%"
+echo } >>"%_PS_BUSCA%"
+echo function Get-PackageFolders([string]$path) { >>"%_PS_BUSCA%"
+echo     Get-ChildItem -LiteralPath $path -Directory -ErrorAction SilentlyContinue ^| Where-Object { >>"%_PS_BUSCA%"
+echo         $_.Name -match '(?i)ookla^|speed^|velocidade^|fast^|laudo^|win(32^|64^|dows)^|x(86^|64)' -and >>"%_PS_BUSCA%"
+echo             -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) >>"%_PS_BUSCA%"
+echo     } >>"%_PS_BUSCA%"
+echo } >>"%_PS_BUSCA%"
+echo foreach ($root in ($roots ^| Where-Object { $_ } ^| Select-Object -Unique)) { >>"%_PS_BUSCA%"
+echo     $exe = Find-Exe $root >>"%_PS_BUSCA%"
+echo     if ($exe) { $exe.FullName; exit } >>"%_PS_BUSCA%"
+echo     foreach ($folder in (Get-PackageFolders $root)) { >>"%_PS_BUSCA%"
+echo         $exe = Find-Exe $folder.FullName >>"%_PS_BUSCA%"
+echo         if ($exe) { $exe.FullName; exit } >>"%_PS_BUSCA%"
+echo         foreach ($child in (Get-PackageFolders $folder.FullName)) { >>"%_PS_BUSCA%"
+echo             $exe = Find-Exe $child.FullName >>"%_PS_BUSCA%"
+echo             if ($exe) { $exe.FullName; exit } >>"%_PS_BUSCA%"
+echo         } >>"%_PS_BUSCA%"
+echo     } >>"%_PS_BUSCA%"
+echo } >>"%_PS_BUSCA%"
+for /f "delims=" %%f in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%_PS_BUSCA%" 2^>nul') do if not defined _ACHOU set "_ACHOU=%%f"
+del /q "%_PS_BUSCA%" >nul 2>&1
 goto :eof
